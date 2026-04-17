@@ -1,0 +1,34 @@
+---
+alwaysApply: true
+---
+
+# MAX — AI FAQ Assistant
+
+## Stack
+
+- TypeScript strict mode, ESM modules (`import`/`export`, not `require`)
+- Node 20+, pnpm workspaces
+- Hono for HTTP, pg for Postgres, @xenova/transformers for embeddings
+- No Prisma/Drizzle for now — raw SQL via `pg`
+- No LangChain/LlamaIndex — write RAG pipeline directly
+
+## Code style
+
+- Prefer functions over classes unless state justifies it
+- Named exports, avoid default exports
+- Async/await, never raw promises with .then()
+- Small focused modules over large files
+- Error handling: throw typed errors, let them bubble to the top-level handler
+
+## Comments
+
+- Comment WHY, not WHAT
+- No JSDoc on obvious functions
+- Keep it sparse
+
+## When making changes
+
+- Don't rewrite code that wasn't asked to change
+- If you see issues outside the task scope, mention them at the end, don't fix silently
+- Ask before adding new dependencies
+- Always show the commands to run (npm/pnpm, docker, psql) after code changes
