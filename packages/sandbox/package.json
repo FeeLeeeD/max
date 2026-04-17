@@ -6,6 +6,7 @@
   "scripts": {
     "db:migrate": "tsx src/scripts/migrate.ts",
     "test:embed": "tsx src/scripts/test-embed.ts",
+    "test:chunker": "tsx src/scripts/test-chunker.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
