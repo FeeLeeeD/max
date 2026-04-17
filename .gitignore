@@ -40,3 +40,7 @@ Thumbs.db
 .cache/
 .turbo/
 .eslintcache
+
+# Data outputs (keep the directory, ignore its contents)
+data/output/*
+!data/output/.gitkeep
