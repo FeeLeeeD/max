@@ -1,0 +1,9 @@
+# Open Rate
+
+Open rate is the percentage of delivered emails that a recipient opened at least once. It is calculated by dividing unique opens by the number of successfully delivered messages and multiplying the result by one hundred. Because mailbox providers count an open the moment a tracking pixel loads, open rate is best understood as a measure of whether the subject line and sender name earned attention in a crowded inbox, rather than a measure of how carefully the message was read.
+
+A healthy open rate varies widely by industry, list quality, and audience type. For most B2B senders, a typical range sits between 17% and 28%, while consumer campaigns often perform slightly higher because the content tends to be lighter and more visually driven. Lifecycle and transactional messages usually exceed 40% because they arrive in direct response to a specific user action. Rather than chasing a single benchmark, compare each campaign against the rolling four-week average for the same audience segment.
+
+Several factors drive open rate up or down. Subject line clarity and specificity matter more than cleverness; recipients scan inboxes in under a second and reward messages that promise concrete value. Sender name recognition is equally important: a consistent "From" address builds familiarity over time, and unexpected senders are filtered out by the reader long before any spam classifier has a chance to intervene. Send time, preheader text, and list freshness all contribute as well.
+
+One recent complication is Apple's Mail Privacy Protection, which preloads tracking pixels for Apple Mail users and inflates reported opens regardless of whether the recipient actually viewed the message. Modern programs treat open rate as a directional signal alongside click-through rate and downstream conversion metrics, rather than trusting it as ground truth on its own.
