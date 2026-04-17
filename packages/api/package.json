@@ -1,0 +1,13 @@
+{
+  "name": "@max/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "dependencies": {
+    "@max/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}
