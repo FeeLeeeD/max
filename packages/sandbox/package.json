@@ -8,6 +8,7 @@
     "test:embed": "tsx src/scripts/test-embed.ts",
     "test:chunker": "tsx src/scripts/test-chunker.ts",
     "ingest": "tsx src/scripts/ingest.ts",
+    "search": "tsx src/scripts/search.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

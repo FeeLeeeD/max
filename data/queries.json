@@ -1,0 +1,30 @@
+[
+  {
+    "query": "how do I improve my email open rate",
+    "note": "natural question, should hit open-rate.md strongly"
+  },
+  {
+    "query": "what is click-through rate",
+    "note": "definitional question, should hit click-through-rate.md"
+  },
+  {
+    "query": "A/B testing for subject lines",
+    "note": "mixed topic - A/B testing article + subject-line references elsewhere"
+  },
+  {
+    "query": "open rate benchmarks",
+    "note": "keyword-style phrasing, tests retrieval on short queries"
+  },
+  {
+    "query": "why are my emails bouncing",
+    "note": "natural question about bounce rate - no dedicated article yet, tests cross-topic retrieval"
+  },
+  {
+    "query": "CTR",
+    "note": "single acronym - stresses short-query retrieval"
+  },
+  {
+    "query": "how to cook pasta",
+    "note": "off-topic baseline - expected to return low-score (or filtered) results"
+  }
+]
