@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: max-postgres
+    restart: unless-stopped
+    ports:
+      - "5441:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-max}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-max}
+      POSTGRES_DB: ${POSTGRES_DB:-max}
+    volumes:
+      - max-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  max-postgres-data:
