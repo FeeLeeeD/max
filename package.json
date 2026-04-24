@@ -12,7 +12,8 @@
     "dev": "pnpm -r --parallel dev",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
-    "clean": "pnpm -r clean"
+    "clean": "pnpm -r clean",
+    "sandbox": "pnpm --filter @max/sandbox"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",

@@ -10,6 +10,7 @@ export interface SearchResult {
   content: string;
   score: number;
   tokenCount: number | null;
+  metadata: Record<string, unknown>;
 }
 
 export interface SearchOptions {
@@ -27,6 +28,7 @@ interface RawRow {
   chunk_index: number;
   content: string;
   token_count: number | null;
+  metadata: Record<string, unknown> | null;
   score: string | number;
 }
 
@@ -66,6 +68,7 @@ export async function search(
         c.chunk_index   AS chunk_index,
         c.content       AS content,
         c.token_count   AS token_count,
+        c.metadata      AS metadata,
         1 - (c.embedding <=> $1::vector) AS score
       FROM chunks c
       JOIN documents d ON d.id = c.document_id
@@ -84,6 +87,7 @@ export async function search(
     chunkIndex: r.chunk_index,
     content: r.content,
     tokenCount: r.token_count,
+    metadata: r.metadata ?? {},
     score: typeof r.score === "string" ? Number(r.score) : r.score,
   }));
 

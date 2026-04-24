@@ -1,10 +1,12 @@
 import { pool, query } from "./db.js";
+import type { DocumentType } from "./documentType.js";
 
 export interface DocumentRow {
   id: number;
   source: string;
   title: string | null;
   contentHash: string;
+  documentType: DocumentType;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -32,6 +34,7 @@ interface RawDocumentRow {
   source: string;
   title: string | null;
   content_hash: string;
+  document_type: DocumentType;
   created_at: Date;
   updated_at: Date;
 }
@@ -42,6 +45,7 @@ function mapDocument(row: RawDocumentRow): DocumentRow {
     source: row.source,
     title: row.title,
     contentHash: row.content_hash,
+    documentType: row.document_type,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -51,7 +55,7 @@ export async function findDocumentBySource(
   source: string,
 ): Promise<DocumentRow | null> {
   const rows = await query<RawDocumentRow>(
-    `SELECT id, source, title, content_hash, created_at, updated_at
+    `SELECT id, source, title, content_hash, document_type, created_at, updated_at
        FROM documents
       WHERE source = $1`,
     [source],
@@ -64,16 +68,18 @@ export async function upsertDocument(args: {
   source: string;
   title: string | null;
   contentHash: string;
+  documentType: DocumentType;
 }): Promise<DocumentRow> {
   const rows = await query<RawDocumentRow>(
-    `INSERT INTO documents (source, title, content_hash)
-     VALUES ($1, $2, $3)
+    `INSERT INTO documents (source, title, content_hash, document_type)
+     VALUES ($1, $2, $3, $4)
      ON CONFLICT (source) DO UPDATE
        SET title = EXCLUDED.title,
            content_hash = EXCLUDED.content_hash,
+           document_type = EXCLUDED.document_type,
            updated_at = now()
-     RETURNING id, source, title, content_hash, created_at, updated_at`,
-    [args.source, args.title, args.contentHash],
+     RETURNING id, source, title, content_hash, document_type, created_at, updated_at`,
+    [args.source, args.title, args.contentHash, args.documentType],
   );
   return mapDocument(rows[0]!);
 }
