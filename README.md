@@ -2,7 +2,7 @@
 
 A minimal RAG (Retrieval-Augmented Generation) playground for experimenting with vector search over email marketing documentation. Built to validate retrieval quality before productionizing.
 
-No LLM, no API, no UI for now — just the retrieval primitives: chunker, embedder, vector database, and CLI scripts.
+No API, no UI for now — retrieval primitives (chunker, embedder, vector database) plus LLM generation via Portkey for end-to-end question answering.
 
 ## What's inside
 
@@ -69,12 +69,15 @@ max/
         ├── articles.ts          # loads .md files with H1 title parsing
         ├── repository.ts        # SQL access for documents and chunks
         ├── search.ts            # vector search module
+        ├── llm.ts               # LLM generation via Portkey gateway
+        ├── rag.ts               # RAG orchestrator (retrieve → generate)
         └── scripts/
             ├── migrate.ts       # applies SQL migrations
             ├── test-embed.ts    # smoke test for embeddings
             ├── test-chunker.ts  # smoke test for chunker
             ├── ingest.ts        # main ingestion CLI
-            └── search.ts        # search CLI (interactive + batch)
+            ├── search.ts        # search CLI (interactive + batch)
+            └── ask.ts           # RAG Q&A CLI
 ```
 
 ## Data flow
@@ -170,6 +173,26 @@ Query file format:
 
 Use batch mode to evaluate retrieval quality: run 20–50 representative questions, open the JSON output, and manually review where the system finds the right chunks and where it misses.
 
+### Asking questions (full RAG)
+
+Requires `PORTKEY_API_KEY` in your `.env` file. Get your key from [Portkey](https://portkey.ai/docs). Optionally set `PORTKEY_VIRTUAL_KEY` and/or `PORTKEY_CONFIG` depending on your Portkey setup.
+
+```bash
+# Ask a question — retrieves chunks, sends to LLM, returns grounded answer
+pnpm --filter @max/sandbox ask "how can I avoid sending emails on weekends"
+
+# Adjust number of retrieved chunks
+pnpm --filter @max/sandbox ask "what is throttling" --top-k 3
+
+# Adjust refusal threshold (default 0.55 — queries scoring below are refused)
+pnpm --filter @max/sandbox ask "what is throttling" --min-score 0.7
+
+# Use a different model
+pnpm --filter @max/sandbox ask "open rate tips" --model gpt-4o
+```
+
+Off-topic questions are automatically refused without calling the LLM, based on the retrieval score. The default threshold (0.55) is tunable via `--min-score` for experimentation.
+
 ### Sanity checks
 
 ```bash
@@ -200,6 +223,9 @@ Environment variables (see `.env.example`):
 | `POSTGRES_PASSWORD` | `max`                                     | Postgres password                      |
 | `POSTGRES_DB`       | `max`                                     | Postgres database name                 |
 | `DATABASE_URL`      | `postgresql://max:max@localhost:5441/max` | Full connection string used by the app |
+| `PORTKEY_API_KEY`   | —                                         | Portkey API key (required for `ask`)   |
+| `PORTKEY_VIRTUAL_KEY` | —                                       | Portkey virtual key (optional)         |
+| `PORTKEY_CONFIG`    | —                                         | Portkey config ID (optional)           |
 
 Chunker defaults (in `src/chunker.ts`):
 
@@ -235,7 +261,7 @@ Currently this is a sandbox. It deliberately skips things a production system wo
 - **No reranker** — top-K from vector search goes straight to output
 - **No hybrid search** — dense retrieval only, no BM25 / keyword component
 - **No query expansion or reformulation**
-- **No LLM** — this is retrieval only, not end-to-end question answering
+- **No conversation history** — single-shot Q&A only, no multi-turn support
 - **Sentence splitter is regex-based** — fails on edge cases like "Dr. Smith"
 - **No handling of article deletions** — removed files stay in the DB until manually cleaned
 - **No authentication, no rate limiting, no HTTP API**

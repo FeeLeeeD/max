@@ -16,8 +16,19 @@ if (!databaseUrl) {
   );
 }
 
+const portkeyApiKey = process.env.PORTKEY_API_KEY;
+if (!portkeyApiKey) {
+  throw new Error(
+    "PORTKEY_API_KEY is not set. Copy .env.example to .env at the project root and set PORTKEY_API_KEY. " +
+      "Get your key at https://portkey.ai/docs",
+  );
+}
+
 export const config = Object.freeze({
   databaseUrl,
+  portkeyApiKey,
+  portkeyVirtualKey: process.env.PORTKEY_VIRTUAL_KEY || undefined,
+  portkeyConfig: process.env.PORTKEY_CONFIG || undefined,
   projectRoot,
 });
 
