@@ -28,7 +28,7 @@ export function FileListItem({ file, onOpenReview, onOpenExtraction }: Props) {
     <Card className="p-4 flex-row items-center gap-4">
       <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
 
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 text-left">
         <p className="font-medium truncate">{file.name}</p>
         <p className="text-xs text-muted-foreground">{formatBytes(file.size)}</p>
       </div>

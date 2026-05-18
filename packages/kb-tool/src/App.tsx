@@ -80,7 +80,8 @@ function App() {
     processBatchAnonymization().catch((err) => {
       console.error("Batch processing failed:", err);
       toast.error("Batch processing encountered an error", {
-        description: err instanceof Error ? err.message : "Check console for details.",
+        description:
+          err instanceof Error ? err.message : "Check console for details.",
       });
     });
   };
@@ -90,8 +91,17 @@ function App() {
       <header className="border-b">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold">MAX Knowledge Base Tool</h1>
-            <p className="text-xs text-muted-foreground">
+            <div className="flex items-center gap-4">
+              <img
+                src="/max.png"
+                alt="MAX Knowledge Base Tool"
+                width={60}
+                height={60}
+              />
+              <h1 className="text-xl font-bold">MAX Knowledge Base Tool</h1>
+            </div>
+
+            <p className="text-muted-foreground text-left">
               Anonymize and structure documents for the RAG knowledge base
             </p>
           </div>
@@ -120,18 +130,21 @@ function App() {
       </main>
 
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+
       {reviewFileId && (
         <ReviewDialog
           fileId={reviewFileId}
           onClose={() => setReviewFileId(null)}
         />
       )}
+
       {extractionFileId && (
         <ExtractionEditor
           fileId={extractionFileId}
           onClose={() => setExtractionFileId(null)}
         />
       )}
+
       <Toaster richColors position="bottom-right" />
     </div>
   );
