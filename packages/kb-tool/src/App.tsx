@@ -1,13 +1,30 @@
+import { useEffect, useState } from "react";
 import { useFilesStore } from "@/store/filesStore";
 import { pickFiles } from "@/lib/filePicker";
 import { isChromiumBased } from "@/lib/browser";
+import { hasRequiredSettings } from "@/lib/settings";
+import { processBatchAnonymization } from "@/lib/processFiles";
 import { BrowserGate } from "@/components/BrowserGate";
 import { EmptyState } from "@/components/EmptyState";
 import { FileList } from "@/components/FileList";
+import { ReviewDialog } from "@/components/ReviewDialog";
+import { SettingsDialog } from "@/components/SettingsDialog";
+import { Button } from "@/components/ui/button";
+import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
+import { Settings } from "lucide-react";
 
 function App() {
   const files = useFilesStore((s) => s.files);
   const addFiles = useFilesStore((s) => s.addFiles);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [reviewFileId, setReviewFileId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!hasRequiredSettings()) {
+      setSettingsOpen(true);
+    }
+  }, []);
 
   if (!isChromiumBased()) {
     return <BrowserGate />;
@@ -27,23 +44,43 @@ function App() {
       );
     } catch (err) {
       console.error("File picker error:", err);
-      alert("Could not read files. See console for details.");
+      toast.error("Could not read files", {
+        description: err instanceof Error ? err.message : String(err),
+      });
     }
   };
 
   const handleStartProcessing = () => {
-    console.log("Start processing:", useFilesStore.getState().files);
-    alert(`Would now process ${files.length} files (Phase 3 — coming next).`);
+    if (!hasRequiredSettings()) {
+      setSettingsOpen(true);
+      return;
+    }
+    processBatchAnonymization().catch((err) => {
+      console.error("Batch processing failed:", err);
+      toast.error("Batch processing encountered an error", {
+        description: err instanceof Error ? err.message : "Check console for details.",
+      });
+    });
   };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b">
-        <div className="max-w-4xl mx-auto px-6 py-4">
-          <h1 className="text-xl font-bold">MAX Knowledge Base Tool</h1>
-          <p className="text-xs text-muted-foreground">
-            Anonymize and structure documents for the RAG knowledge base
-          </p>
+        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold">MAX Knowledge Base Tool</h1>
+            <p className="text-xs text-muted-foreground">
+              Anonymize and structure documents for the RAG knowledge base
+            </p>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Settings"
+            onClick={() => setSettingsOpen(true)}
+          >
+            <Settings className="h-5 w-5" />
+          </Button>
         </div>
       </header>
 
@@ -54,9 +91,19 @@ function App() {
           <FileList
             onAddFiles={handlePickFiles}
             onStartProcessing={handleStartProcessing}
+            onOpenReview={setReviewFileId}
           />
         )}
       </main>
+
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      {reviewFileId && (
+        <ReviewDialog
+          fileId={reviewFileId}
+          onClose={() => setReviewFileId(null)}
+        />
+      )}
+      <Toaster richColors position="bottom-right" />
     </div>
   );
 }

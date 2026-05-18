@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { KbFile, FileStatus } from '@/types';
+import type { KbFile, FileStatus, Replacement } from '@/types';
 
 interface FilesState {
   files: KbFile[];
@@ -8,6 +8,14 @@ interface FilesState {
   removeFile: (id: string) => void;
   updateStatus: (id: string, status: FileStatus, error?: string) => void;
   clearAll: () => void;
+
+  setAnonymizationResult: (
+    id: string,
+    anonymizedContent: string,
+    replacements: Replacement[],
+  ) => void;
+  confirmAnonymization: (id: string) => void;
+  rejectAnonymization: (id: string) => void;
 }
 
 export const useFilesStore = create<FilesState>()((set) => ({
@@ -38,4 +46,43 @@ export const useFilesStore = create<FilesState>()((set) => ({
     })),
 
   clearAll: () => set({ files: [] }),
+
+  setAnonymizationResult: (id, anonymizedContent, replacements) =>
+    set((state) => ({
+      files: state.files.map((f) =>
+        f.id === id
+          ? {
+              ...f,
+              status: 'anonymized' as FileStatus,
+              anonymizedContent,
+              anonymizationReplacements: replacements,
+              error: undefined,
+            }
+          : f,
+      ),
+    })),
+
+  confirmAnonymization: (id) =>
+    set((state) => ({
+      files: state.files.map((f) =>
+        f.id === id
+          ? { ...f, status: 'anonymization_confirmed' as FileStatus }
+          : f,
+      ),
+    })),
+
+  rejectAnonymization: (id) =>
+    set((state) => ({
+      files: state.files.map((f) =>
+        f.id === id
+          ? {
+              ...f,
+              status: 'selected' as FileStatus,
+              anonymizedContent: undefined,
+              anonymizationReplacements: undefined,
+              error: undefined,
+            }
+          : f,
+      ),
+    })),
 }));

@@ -2,36 +2,131 @@ import type { KbFile } from '@/types';
 import { useFilesStore } from '@/store/filesStore';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileText, X } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import {
+  AlertCircle,
+  CheckCircle2,
+  FileText,
+  Loader2,
+  RotateCcw,
+  X,
+} from 'lucide-react';
 
 interface Props {
   file: KbFile;
+  onOpenReview: (fileId: string) => void;
 }
 
-export function FileListItem({ file }: Props) {
+export function FileListItem({ file, onOpenReview }: Props) {
   const removeFile = useFilesStore((s) => s.removeFile);
+  const updateStatus = useFilesStore((s) => s.updateStatus);
+
+  const removeDisabled =
+    file.status === 'anonymizing' || file.status === 'extracting';
 
   return (
     <Card className="p-4 flex-row items-center gap-4">
-      <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+      <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
 
       <div className="flex-1 min-w-0">
         <p className="font-medium truncate">{file.name}</p>
-        <p className="text-xs text-muted-foreground">
-          {formatBytes(file.size)}
-        </p>
+        <p className="text-xs text-muted-foreground">{formatBytes(file.size)}</p>
       </div>
+
+      <StatusIndicator
+        file={file}
+        onOpenReview={onOpenReview}
+        onRetry={() => updateStatus(file.id, 'selected')}
+      />
 
       <Button
         variant="ghost"
         size="icon"
         onClick={() => removeFile(file.id)}
+        disabled={removeDisabled}
         aria-label="Remove file"
+        title={removeDisabled ? 'Cannot remove while processing' : 'Remove file'}
       >
         <X className="h-4 w-4" />
       </Button>
     </Card>
   );
+}
+
+interface StatusProps {
+  file: KbFile;
+  onOpenReview: (fileId: string) => void;
+  onRetry: () => void;
+}
+
+function StatusIndicator({ file, onOpenReview, onRetry }: StatusProps) {
+  switch (file.status) {
+    case 'selected':
+      return (
+        <span className="text-xs text-muted-foreground shrink-0">Ready</span>
+      );
+
+    case 'anonymizing':
+      return (
+        <span className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          Anonymizing…
+        </span>
+      );
+
+    case 'anonymized':
+      return (
+        <Button
+          variant="outline"
+          size="sm"
+          className="border-blue-500/40 bg-blue-500/10 text-blue-700 hover:bg-blue-500/15 hover:text-blue-700 dark:text-blue-300"
+          onClick={() => onOpenReview(file.id)}
+        >
+          Review anonymization →
+        </Button>
+      );
+
+    case 'anonymization_confirmed':
+      return (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-1.5 px-2 text-xs text-emerald-700 hover:bg-emerald-500/10 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300"
+          onClick={() => onOpenReview(file.id)}
+          title="Review again or re-anonymize"
+        >
+          <CheckCircle2 className="h-4 w-4" />
+          Anonymization confirmed
+        </Button>
+      );
+
+    case 'error':
+      return (
+        <div className="flex items-center gap-2 shrink-0">
+          <span
+            className="flex items-center gap-1.5 text-xs text-destructive max-w-[280px] truncate"
+            title={file.error ?? 'Unknown error'}
+          >
+            <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">{file.error ?? 'Unknown error'}</span>
+          </span>
+          <Button variant="outline" size="sm" onClick={onRetry}>
+            <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+            Retry
+          </Button>
+        </div>
+      );
+
+    // Phase 4 statuses — placeholder for now.
+    case 'extracting':
+    case 'extracted':
+    case 'saved':
+      return (
+        <Badge variant="secondary" className="shrink-0">
+          Processing…
+        </Badge>
+      );
+  }
 }
 
 function formatBytes(bytes: number): string {
