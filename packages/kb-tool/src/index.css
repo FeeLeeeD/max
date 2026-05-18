@@ -3,6 +3,15 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/inter";
 
+.w-md-editor *,
+.w-md-editor *::before,
+.w-md-editor *::after {
+  all: revert-layer;
+  box-sizing: border-box;
+}
+
+@import "@uiw/react-md-editor/markdown-editor.css";
+
 @custom-variant dark (&:is(.dark *));
 
 :root {

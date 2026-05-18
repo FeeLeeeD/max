@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import MDEditor from "@uiw/react-md-editor";
-// import "@uiw/react-md-editor/markdown-editor.css";
 import { Loader2, Sparkles, X } from "lucide-react";
 import {
   Dialog,
