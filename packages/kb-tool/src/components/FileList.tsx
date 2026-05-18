@@ -7,9 +7,15 @@ interface Props {
   onAddFiles: () => void;
   onStartProcessing: () => void;
   onOpenReview: (fileId: string) => void;
+  onOpenExtraction: (fileId: string) => void;
 }
 
-export function FileList({ onAddFiles, onStartProcessing, onOpenReview }: Props) {
+export function FileList({
+  onAddFiles,
+  onStartProcessing,
+  onOpenReview,
+  onOpenExtraction,
+}: Props) {
   const files = useFilesStore((s) => s.files);
   const clearAll = useFilesStore((s) => s.clearAll);
 
@@ -32,20 +38,13 @@ export function FileList({ onAddFiles, onStartProcessing, onOpenReview }: Props)
           <Button variant="outline" onClick={clearAll}>
             <Trash2 className="mr-2 h-4 w-4" /> Clear all
           </Button>
-          <Button
-            onClick={onStartProcessing}
-            disabled={!hasSelected}
-            title={
-              hasSelected
-                ? undefined
-                : 'Extraction (Phase 4) is not yet implemented.'
-            }
-          >
-            <Play className="mr-2 h-4 w-4" />
-            {hasSelected
-              ? `Start anonymization (${selectedCount} file${selectedCount !== 1 ? 's' : ''})`
-              : 'Continue'}
-          </Button>
+          {hasSelected && (
+            <Button onClick={onStartProcessing}>
+              <Play className="mr-2 h-4 w-4" />
+              Start anonymization ({selectedCount} file
+              {selectedCount !== 1 ? 's' : ''})
+            </Button>
+          )}
         </div>
       </div>
 
@@ -55,6 +54,7 @@ export function FileList({ onAddFiles, onStartProcessing, onOpenReview }: Props)
             key={file.id}
             file={file}
             onOpenReview={onOpenReview}
+            onOpenExtraction={onOpenExtraction}
           />
         ))}
       </div>

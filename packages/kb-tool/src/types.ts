@@ -19,6 +19,8 @@ export interface KbFile {
   anonymizedContent?: string;
   anonymizationReplacements?: Replacement[];
   extractedContent?: string;
+  editedContent?: string;
+  savedAs?: string;
 }
 
 export interface Replacement {

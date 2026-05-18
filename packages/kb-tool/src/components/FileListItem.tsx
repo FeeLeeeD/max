@@ -2,7 +2,6 @@ import type { KbFile } from '@/types';
 import { useFilesStore } from '@/store/filesStore';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
   AlertCircle,
   CheckCircle2,
@@ -15,9 +14,10 @@ import {
 interface Props {
   file: KbFile;
   onOpenReview: (fileId: string) => void;
+  onOpenExtraction: (fileId: string) => void;
 }
 
-export function FileListItem({ file, onOpenReview }: Props) {
+export function FileListItem({ file, onOpenReview, onOpenExtraction }: Props) {
   const removeFile = useFilesStore((s) => s.removeFile);
   const updateStatus = useFilesStore((s) => s.updateStatus);
 
@@ -36,6 +36,7 @@ export function FileListItem({ file, onOpenReview }: Props) {
       <StatusIndicator
         file={file}
         onOpenReview={onOpenReview}
+        onOpenExtraction={onOpenExtraction}
         onRetry={() => updateStatus(file.id, 'selected')}
       />
 
@@ -56,10 +57,16 @@ export function FileListItem({ file, onOpenReview }: Props) {
 interface StatusProps {
   file: KbFile;
   onOpenReview: (fileId: string) => void;
+  onOpenExtraction: (fileId: string) => void;
   onRetry: () => void;
 }
 
-function StatusIndicator({ file, onOpenReview, onRetry }: StatusProps) {
+function StatusIndicator({
+  file,
+  onOpenReview,
+  onOpenExtraction,
+  onRetry,
+}: StatusProps) {
   switch (file.status) {
     case 'selected':
       return (
@@ -88,15 +95,46 @@ function StatusIndicator({ file, onOpenReview, onRetry }: StatusProps) {
 
     case 'anonymization_confirmed':
       return (
+        <span className="text-xs text-muted-foreground shrink-0">
+          Queued for extraction
+        </span>
+      );
+
+    case 'extracting':
+      return (
+        <span className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          Extracting…
+        </span>
+      );
+
+    case 'extracted':
+      return (
+        <Button
+          variant="outline"
+          size="sm"
+          className="border-purple-500/40 bg-purple-500/10 text-purple-700 hover:bg-purple-500/15 hover:text-purple-700 dark:text-purple-300"
+          onClick={() => onOpenExtraction(file.id)}
+        >
+          Review extraction →
+        </Button>
+      );
+
+    case 'saved':
+      return (
         <Button
           variant="ghost"
           size="sm"
-          className="gap-1.5 px-2 text-xs text-emerald-700 hover:bg-emerald-500/10 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300"
-          onClick={() => onOpenReview(file.id)}
-          title="Review again or re-anonymize"
+          className="gap-1.5 px-2 text-xs text-emerald-700 hover:bg-emerald-500/10 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300 max-w-[320px]"
+          onClick={() => onOpenExtraction(file.id)}
+          title={
+            file.savedAs ? `Saved as ${file.savedAs}` : 'Saved (filename unknown)'
+          }
         >
-          <CheckCircle2 className="h-4 w-4" />
-          Anonymization confirmed
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          <span className="truncate">
+            Saved as <span className="font-mono">{file.savedAs ?? '—'}</span>
+          </span>
         </Button>
       );
 
@@ -115,16 +153,6 @@ function StatusIndicator({ file, onOpenReview, onRetry }: StatusProps) {
             Retry
           </Button>
         </div>
-      );
-
-    // Phase 4 statuses — placeholder for now.
-    case 'extracting':
-    case 'extracted':
-    case 'saved':
-      return (
-        <Badge variant="secondary" className="shrink-0">
-          Processing…
-        </Badge>
       );
   }
 }

@@ -16,6 +16,10 @@ interface FilesState {
   ) => void;
   confirmAnonymization: (id: string) => void;
   rejectAnonymization: (id: string) => void;
+
+  setExtractionResult: (id: string, extractedContent: string) => void;
+  updateEditedContent: (id: string, edited: string) => void;
+  markSaved: (id: string, savedAs: string) => void;
 }
 
 export const useFilesStore = create<FilesState>()((set) => ({
@@ -82,6 +86,37 @@ export const useFilesStore = create<FilesState>()((set) => ({
               anonymizationReplacements: undefined,
               error: undefined,
             }
+          : f,
+      ),
+    })),
+
+  setExtractionResult: (id, extractedContent) =>
+    set((state) => ({
+      files: state.files.map((f) =>
+        f.id === id
+          ? {
+              ...f,
+              status: 'extracted' as FileStatus,
+              extractedContent,
+              editedContent: extractedContent,
+              error: undefined,
+            }
+          : f,
+      ),
+    })),
+
+  updateEditedContent: (id, edited) =>
+    set((state) => ({
+      files: state.files.map((f) =>
+        f.id === id ? { ...f, editedContent: edited } : f,
+      ),
+    })),
+
+  markSaved: (id, savedAs) =>
+    set((state) => ({
+      files: state.files.map((f) =>
+        f.id === id
+          ? { ...f, status: 'saved' as FileStatus, savedAs }
           : f,
       ),
     })),
