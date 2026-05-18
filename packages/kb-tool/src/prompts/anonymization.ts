@@ -38,7 +38,6 @@ Keep these names as-is — they are our company, our team, or public products:
 Return ONLY a valid JSON object with this exact shape, no markdown wrapping, no commentary before or after:
 
 {
-  "anonymized_text": "the full text with all replacements applied",
   "replacements": [
     {"original": "John Smith", "replacement": "[Person_A]", "category": "person"},
     {"original": "Acme Corp", "replacement": "[Company_A]", "category": "company"},
@@ -48,7 +47,19 @@ Return ONLY a valid JSON object with this exact shape, no markdown wrapping, no 
 
 Categories must be one of: person, company, email, phone, url, id, other.
 
-If the text contains nothing to anonymize, return the original text in "anonymized_text" and an empty array in "replacements".`;
+CRITICAL RULES for the replacements list:
+
+1. Include EVERY occurrence target — each unique string that needs to be replaced should appear ONCE in the list. We will apply each replacement globally (replacing all occurrences in the document).
+
+2. The "original" string must be the EXACT text as it appears in the source document, including any punctuation, capitalization, and trailing/leading whitespace that belongs to it. Do NOT include surrounding context.
+
+3. Be precise about boundaries. If "John" appears as a name and "Johnson & Johnson" appears as a company, those are two separate replacements. Don't replace "John" inside "Johnson".
+
+4. Consistency: if "John Smith" appears 10 times, you list it ONCE with replacement [Person_A]. We handle replacing all occurrences.
+
+5. If the text contains nothing to anonymize, return: {"replacements": []}
+
+6. Do NOT include the anonymized text. We don't need it. Just the replacements list.`;
 
 export function buildAnonymizationUserPrompt(rawText: string): string {
   return `Anonymize the following text per the rules above. Return only the JSON object.

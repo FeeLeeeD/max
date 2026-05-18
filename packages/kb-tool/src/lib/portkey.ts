@@ -36,7 +36,7 @@ export async function callLLM(args: CallLLMArgs): Promise<ChatCompletionResponse
     headers,
     body: JSON.stringify({
       model: args.model ?? DEFAULT_MODEL,
-      max_tokens: args.maxTokens ?? 4096,
+      max_tokens: args.maxTokens ?? 8192,
       temperature: args.temperature ?? 0.1,
       messages: [
         { role: 'system', content: args.systemPrompt },

@@ -24,18 +24,16 @@ export async function anonymize(rawText: string): Promise<AnonymizationResult> {
   const { text } = await callLLM({
     systemPrompt: ANONYMIZATION_SYSTEM_PROMPT,
     userPrompt: buildAnonymizationUserPrompt(rawText),
+    maxTokens: 8192,
+    temperature: 0.1,
   });
 
   const parsed = tryParseJson(text);
 
-  if (
-    !parsed ||
-    typeof parsed !== 'object' ||
-    typeof parsed.anonymized_text !== 'string' ||
-    !Array.isArray(parsed.replacements)
-  ) {
+  if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.replacements)) {
     throw new Error(
-      'LLM response is missing required fields (anonymized_text, replacements).',
+      'Anonymization response missing "replacements" array. Got: ' +
+        JSON.stringify(parsed).slice(0, 200),
     );
   }
 
@@ -63,10 +61,25 @@ export async function anonymize(rawText: string): Promise<AnonymizationResult> {
     },
   );
 
-  return {
-    anonymizedText: parsed.anonymized_text,
-    replacements,
-  };
+  const anonymizedText = applyReplacements(rawText, replacements);
+
+  return { anonymizedText, replacements };
+}
+
+// Apply replacements locally. Sort by length descending so longer strings
+// are replaced first — otherwise replacing "John" before "John Smith" would
+// leave "[Person_A] Smith" behind.
+function applyReplacements(text: string, replacements: Replacement[]): string {
+  const sorted = [...replacements].sort(
+    (a, b) => b.original.length - a.original.length,
+  );
+
+  let result = text;
+  for (const r of sorted) {
+    if (!r.original) continue;
+    result = result.split(r.original).join(r.replacement);
+  }
+  return result;
 }
 
 // LLMs sometimes wrap JSON in markdown fences or add commentary even when
