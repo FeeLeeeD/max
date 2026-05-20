@@ -98,13 +98,7 @@ function App() {
                 aria-hidden
                 className="absolute inset-0 -z-10 rounded-xl bg-linear-to-br from-primary/30 to-transparent blur-md"
               />
-              <img
-                src="/max.png"
-                alt="MAX"
-                width={40}
-                height={40}
-                className="rounded-lg ring-1 ring-border/70"
-              />
+              <img src="/max.png" alt="MAX" width={40} height={40} />
             </div>
             <div className="leading-tight">
               <div className="flex items-center gap-2">
@@ -154,8 +148,8 @@ function App() {
               </h2>
               <p className="mx-auto mt-3 max-w-xl text-pretty text-sm text-muted-foreground sm:text-[15px]">
                 Drop in <code>.md</code> or <code>.txt</code> files. We&apos;ll
-                strip personal details and produce structured Markdown ready
-                for your RAG pipeline.
+                strip personal details and produce structured Markdown ready for
+                your RAG pipeline.
               </p>
             </section>
           )}

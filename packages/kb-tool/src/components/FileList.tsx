@@ -138,12 +138,11 @@ type Tone = "muted" | "primary" | "info" | "success" | "destructive";
 
 const TONE_CLASSES: Record<Tone, string> = {
   muted: "text-muted-foreground border-border/80 bg-card/70",
-  primary:
-    "text-primary border-primary/25 bg-primary/8 dark:bg-primary/15",
+  primary: "text-primary border-primary/25 bg-primary/8 dark:bg-primary/15",
   info: "text-chart-2 border-chart-2/30 bg-chart-2/10",
-  success: "text-emerald-700 border-emerald-500/30 bg-emerald-500/10 dark:text-emerald-300",
-  destructive:
-    "text-destructive border-destructive/30 bg-destructive/10",
+  success:
+    "text-emerald-700 border-emerald-500/30 bg-emerald-500/10 dark:text-emerald-300",
+  destructive: "text-destructive border-destructive/30 bg-destructive/10",
 };
 
 interface StatusChipProps {

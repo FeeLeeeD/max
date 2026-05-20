@@ -66,6 +66,7 @@ let extractionInFlight = false;
 export async function maybeStartExtraction(): Promise<void> {
   if (extractionInFlight) return;
   extractionInFlight = true;
+
   try {
     while (true) {
       const { files } = useFilesStore.getState();
