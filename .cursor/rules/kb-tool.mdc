@@ -1,0 +1,150 @@
+---
+description: General context and conventions for the MAX KB Tool (packages/kb-tool)
+globs: packages/kb-tool/**/*
+alwaysApply: false
+---
+
+# kb-tool — MAX Knowledge Base Tool
+
+A standalone, **browser-only** React app that lets a non-technical user
+prep documents (customer emails, transcripts, articles) for MAX's RAG
+knowledge base. It runs two LLM passes — anonymization, then structured
+extraction — and saves the result to disk. There is **no backend**: it's
+a static SPA that talks to the Portkey API directly from the browser and
+uses the File System Access API for I/O.
+
+It's shipped as a zip (`pnpm package`) containing the built `dist/` and
+a macOS `start.command` launcher that serves the files with
+`python3 -m http.server`.
+
+## Stack
+
+- React 19 + TypeScript strict (ESM, `verbatimModuleSyntax`, `erasableSyntaxOnly`)
+- Vite 8 (`base: './'` — must stay relative so the launcher works)
+- Tailwind CSS v4 — CSS-first config in `src/index.css` via `@theme inline`. No `tailwind.config.js`.
+- shadcn/ui (style `radix-vega`, primitives in `src/components/ui/`)
+- Radix UI primitives, `lucide-react` icons, `sonner` toasts
+- Zustand for app state (single store: `src/store/filesStore.ts`)
+- `@uiw/react-md-editor` for the extraction editor, `react-diff-viewer-continued` for the anonymization diff
+- `@/` path alias → `./src/`
+
+## Layout
+
+```
+src/
+  App.tsx                     # composition root, top-level effects
+  main.tsx
+  types.ts                    # domain types: KbFile, FileStatus, Replacement
+  types/                      # ambient .d.ts (file-system-access.d.ts)
+  store/filesStore.ts         # Zustand store — single source of truth
+  lib/                        # pure services, no React
+    portkey.ts                # LLM gateway call
+    anonymize.ts              # LLM pass 1 + local replacement application
+    extract.ts                # LLM pass 2
+    processFiles.ts           # batch orchestration + auto-extract loop
+    concurrency.ts            # runWithConcurrency worker pool
+    settings.ts               # localStorage-backed Portkey credentials
+    filePicker.ts / saveFile.ts  # File System Access wrappers
+    browser.ts                # isChromiumBased() gate
+    utils.ts                  # cn() — clsx + tailwind-merge
+  prompts/
+    anonymization.ts          # system prompt + user prompt builder
+    extraction.ts             # system prompt + user prompt builder
+  components/
+    ui/                       # shadcn primitives — managed by CLI, don't hand-edit
+    *.tsx                     # feature components
+launcher/start.command        # macOS double-click launcher (ships with release)
+scripts/package.sh            # builds + zips the release bundle
+```
+
+## The pipeline
+
+`KbFile.status` is the state machine. Always update via store actions,
+never mutate.
+
+```
+selected
+  └─ processBatchAnonymization() ──▶ anonymizing
+       └─ setAnonymizationResult ─▶ anonymized
+            ├─ confirmAnonymization ─▶ anonymization_confirmed
+            │     └─ maybeStartExtraction() auto-fires ─▶ extracting
+            │          └─ setExtractionResult ─▶ extracted
+            │               └─ saveToFile() ─▶ saved
+            └─ rejectAnonymization  ─▶ selected
+  (anything can fail) ─▶ error  (retry routes back to 'selected')
+```
+
+- Anonymization returns JSON `{ replacements: [{original, replacement, category}] }`. Replacements are applied **locally**, sorted longest-first (see `anonymize.ts`) so `"John Smith"` is replaced before `"John"`.
+- Extraction returns markdown that must start with `# `. The first heading is enforced as a sanity check.
+- Both LLM call sites use `tryParseJson` / `stripCodeFence` defensively — models still wrap output in ```json``` fences sometimes even when told not to. Keep that tolerance when changing prompts.
+- Batches run through `runWithConcurrency` with a limit of 3 (`ANONYMIZATION_CONCURRENCY` / `EXTRACTION_CONCURRENCY`). The `maybeStartExtraction` reentrancy guard exists because the store subscribe in `App.tsx` can fire many times during a batch — keep the guard.
+
+## LLM / Portkey
+
+- Single entry point: `callLLM` in `src/lib/portkey.ts` → `POST https://api.portkey.ai/v1/chat/completions`.
+- Default model: `@openrouter/anthropic/claude-sonnet-4-5`, `max_tokens: 8192`, `temperature: 0.1`.
+- Auth headers: `x-portkey-api-key` (required) and optional `x-portkey-virtual-key`.
+- Never bypass Portkey to call providers directly — it's the org's mandated gateway.
+- Don't log prompts/responses; the tool's selling point is "local-only".
+
+## Settings
+
+- Stored in `localStorage` only, under `maxkb_portkey_api_key` and `maxkb_portkey_virtual_key`.
+- `hasRequiredSettings()` gates startup; `SettingsDialog` opens automatically on first load if the key is missing.
+- Don't add a server, env file, or any other persistence layer for credentials.
+
+## Browser requirements
+
+- Chromium-only — relies on `window.showOpenFilePicker` / `showSaveFilePicker`.
+- The `BrowserGate` short-circuit in `App.tsx` (via `isChromiumBased()`) must stay; Safari/Firefox users see it instead of a broken app.
+- File System Access API types live in `src/types/file-system-access.d.ts` — extend there, don't `// @ts-ignore`.
+
+## State & data flow conventions
+
+- Components read via selectors: `useFilesStore((s) => s.files)` — not destructuring the whole store, to keep re-renders narrow.
+- Mutations go through the named store actions; never `set` ad-hoc from a component.
+- Status transitions live in the store. UI components branch on `file.status`, they don't compute new statuses.
+- Errors from a per-file pipeline step: `updateStatus(id, 'error', message)` + `toast.error(...)`. Errors from app-level code: `console.error` + `toast.error`.
+- Prompts live in `src/prompts/` so they can be edited without touching pipeline code. Keep system prompts there, not inlined in `lib/`.
+
+## UI conventions
+
+- Custom utility classes (defined in `src/index.css`, all prefixed `kb-`):
+  - `.kb-surface`, `.kb-surface-flat` — elevated cards on the aurora background
+  - `.kb-row` — list-item row with hover lift + `data-state="busy"` shimmer
+  - `.kb-glass-bar`, `.kb-pill`, `.kb-divider`, `.kb-fade-up`
+  - Shadows: `--kb-shadow-{sm,md,lg}` / `shadow-kb-*`
+- Theme: OKLCH variables in `:root` and `.dark`; semantic Tailwind tokens (`bg-card`, `text-muted-foreground`, `border-border/70`, `chart-1..5`). Don't hardcode hex.
+- Merge classes with `cn(...)` from `@/lib/utils`.
+- Icons: lucide-react. Sizes by context: `h-3 w-3` in inline status, `h-3.5 w-3.5` in pills/chips, `h-4 w-4` in buttons, `h-5 w-5` for header actions.
+- Toasts: `sonner` only, mounted once in `App.tsx` as `<Toaster richColors position="bottom-right" />`.
+- shadcn components in `src/components/ui/` are CLI-generated — add new ones with the shadcn CLI rather than hand-writing. `components.json` is the source of truth for style/aliases.
+
+## TypeScript
+
+- `verbatimModuleSyntax` is on → use `import type { … }` for type-only imports.
+- `erasableSyntaxOnly` is on → no enums, no parameter properties, no namespaces. Prefer string literal unions (like `FileStatus`) and plain `const` objects.
+- `noUnusedLocals` / `noUnusedParameters` are on — prefix intentional ignores with `_`.
+- Domain types live in `src/types.ts`; ambient/global typings in `src/types/*.d.ts`.
+
+## Commands
+
+Run from `packages/kb-tool/` (or via pnpm filter from the repo root):
+
+- `pnpm dev` — Vite dev server at `http://localhost:5173`
+- `pnpm build` — `tsc -b && vite build` → `dist/`
+- `pnpm lint` — ESLint flat config (`eslint.config.js`)
+- `pnpm preview` — preview the built bundle
+- `pnpm package` — runs `scripts/package.sh`: builds, stages `dist/ + launcher/` into `release/kb-tool/`, zips it as `release/kb-tool-YYYYMMDD.zip` for handoff to the marketer
+
+## Things not to do
+
+- Don't add a backend, server, or proxy — this is intentionally a static SPA. Credentials stay in `localStorage`, LLM calls go directly to Portkey.
+- Don't change `base: './'` in `vite.config.ts` — the macOS launcher serves `dist/` over `python3 -m http.server` from an arbitrary path; absolute base paths will 404.
+- Don't downgrade Tailwind to v3 patterns. There's no `tailwind.config.js`; the theme is in `index.css` under `@theme inline`.
+- Don't hand-edit `src/components/ui/*` — use the shadcn CLI.
+- Don't add telemetry, analytics, or anything that phones home. "Local-only processing" is shown in the header for a reason.
+- Don't add a router or multi-page navigation — it's a single screen with modal dialogs.
+- Don't introduce a new state library; everything goes through `filesStore`.
+- Don't silently catch errors in the pipeline. Surface them via `toast.error` and `updateStatus(id, 'error', msg)` so the user can retry.
+- Don't add new dependencies without flagging it — see the root rule.
