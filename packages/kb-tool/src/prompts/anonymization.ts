@@ -1,4 +1,19 @@
-export const ANONYMIZATION_SYSTEM_PROMPT = `You are an anonymization assistant. You receive raw text — customer support emails, meeting transcripts, or articles — and your job is to:
+import type { WhitelistEntry } from '@/lib/whitelist';
+
+export function buildAnonymizationSystemPrompt(
+  whitelist: WhitelistEntry[],
+): string {
+  const names = [...whitelist]
+    .map((e) => e.name.trim())
+    .filter((n) => n.length > 0)
+    .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+
+  const whitelistBlock =
+    names.length > 0
+      ? names.map((n) => `- ${n}`).join('\n')
+      : '- (no names whitelisted)';
+
+  return `You are an anonymization assistant. You receive raw text — customer support emails, meeting transcripts, or articles — and your job is to:
 
 1. Identify all personally identifiable information (PII) and customer-specific data.
 2. Replace each occurrence with a consistent placeholder.
@@ -16,14 +31,12 @@ export const ANONYMIZATION_SYSTEM_PROMPT = `You are an anonymization assistant. 
 
 # What NOT to anonymize (whitelist)
 
-Keep these names as-is — they are our company, our team, or public products:
+Keep these names as-is — they are companies, team members, or products that should never be replaced:
 
-- Seventh Sense (our company)
-- Telepath Data (our parent company)
-- 7th Sense
-- Mike (internal team member)
-- Erik (internal team member)
-- HubSpot, Salesforce, Marketo, Mailchimp, Zoom, Slack, Cloudflare, Google, Microsoft, Adobe, Marketo, Pardot — any well-known third-party tools and platforms
+${whitelistBlock}
+
+Also do not anonymize:
+
 - Dates and times (keep for context)
 - Generic technical terms (API names, feature names, metric names)
 
@@ -60,6 +73,7 @@ CRITICAL RULES for the replacements list:
 5. If the text contains nothing to anonymize, return: {"replacements": []}
 
 6. Do NOT include the anonymized text. We don't need it. Just the replacements list.`;
+}
 
 export function buildAnonymizationUserPrompt(rawText: string): string {
   return `Anonymize the following text per the rules above. Return only the JSON object.

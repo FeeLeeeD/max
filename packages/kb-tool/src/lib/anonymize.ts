@@ -1,9 +1,10 @@
 import type { Replacement } from '@/types';
 import { callLLM } from './portkey';
 import {
-  ANONYMIZATION_SYSTEM_PROMPT,
+  buildAnonymizationSystemPrompt,
   buildAnonymizationUserPrompt,
 } from '@/prompts/anonymization';
+import { getWhitelist } from './whitelist';
 
 export interface AnonymizationResult {
   anonymizedText: string;
@@ -22,7 +23,7 @@ const VALID_CATEGORIES: ReadonlySet<Replacement['category']> = new Set([
 
 export async function anonymize(rawText: string): Promise<AnonymizationResult> {
   const { text } = await callLLM({
-    systemPrompt: ANONYMIZATION_SYSTEM_PROMPT,
+    systemPrompt: buildAnonymizationSystemPrompt(getWhitelist()),
     userPrompt: buildAnonymizationUserPrompt(rawText),
     maxTokens: 8192,
     temperature: 0.1,
