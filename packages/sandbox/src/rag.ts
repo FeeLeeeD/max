@@ -7,9 +7,6 @@ export interface AnsweredSource {
   title: string | null;
   score: number;
   contentPreview: string;
-  threadTitle?: string;
-  subject?: string;
-  dateRange?: string;
 }
 
 export interface AnswerResult {
@@ -146,35 +143,17 @@ function buildUserPrompt(
   );
 }
 
-function metaString(
-  metadata: Record<string, unknown>,
-  key: string,
-): string | undefined {
-  const v = metadata[key];
-  return typeof v === "string" && v.length > 0 ? v : undefined;
-}
-
 function buildSource(r: SearchResult): AnsweredSource {
   const preview =
     r.content.length <= 200 ? r.content : r.content.slice(0, 200).trimEnd();
 
-  const src: AnsweredSource = {
+  return {
     source: r.source,
     chunkIndex: r.chunkIndex,
     title: r.title,
     score: r.score,
     contentPreview: preview,
   };
-
-  const threadTitle = metaString(r.metadata, "threadTitle");
-  const subject = metaString(r.metadata, "subject");
-  const dateRange = metaString(r.metadata, "dateRange");
-
-  if (threadTitle) src.threadTitle = threadTitle;
-  if (subject) src.subject = subject;
-  if (dateRange) src.dateRange = dateRange;
-
-  return src;
 }
 
 export async function ask(

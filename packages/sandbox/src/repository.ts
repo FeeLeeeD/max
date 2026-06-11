@@ -138,3 +138,86 @@ export async function countChunksForDocument(
   );
   return Number(rows[0]?.count ?? 0);
 }
+
+export interface DocumentSummary {
+  id: number;
+  source: string;
+  title: string | null;
+  chunkCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface RawDocumentSummaryRow {
+  id: number;
+  source: string;
+  title: string | null;
+  chunk_count: string;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export async function listDocuments(): Promise<DocumentSummary[]> {
+  const rows = await query<RawDocumentSummaryRow>(
+    `SELECT d.id,
+            d.source,
+            d.title,
+            COUNT(c.id)::text AS chunk_count,
+            d.created_at,
+            d.updated_at
+       FROM documents d
+       LEFT JOIN chunks c ON c.document_id = d.id
+      GROUP BY d.id
+      ORDER BY d.source`,
+  );
+  return rows.map((row) => ({
+    id: row.id,
+    source: row.source,
+    title: row.title,
+    chunkCount: Number(row.chunk_count),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }));
+}
+
+export async function deleteDocumentBySource(
+  source: string,
+): Promise<{ deleted: boolean; documentId: number | null }> {
+  const rows = await query<{ id: number }>(
+    "DELETE FROM documents WHERE source = $1 RETURNING id",
+    [source],
+  );
+  const row = rows[0];
+  return { deleted: Boolean(row), documentId: row?.id ?? null };
+}
+
+export async function getStats(): Promise<{
+  documentCount: number;
+  chunkCount: number;
+  chunksWithoutEmbedding: number;
+}> {
+  const rows = await query<{
+    document_count: string;
+    chunk_count: string;
+    chunks_without_embedding: string;
+  }>(
+    `SELECT
+       (SELECT COUNT(*)::text FROM documents) AS document_count,
+       (SELECT COUNT(*)::text FROM chunks) AS chunk_count,
+       (SELECT COUNT(*)::text FROM chunks WHERE embedding IS NULL)
+         AS chunks_without_embedding`,
+  );
+  const row = rows[0];
+  return {
+    documentCount: Number(row?.document_count ?? 0),
+    chunkCount: Number(row?.chunk_count ?? 0),
+    chunksWithoutEmbedding: Number(row?.chunks_without_embedding ?? 0),
+  };
+}
+
+export async function deleteAllDocuments(): Promise<{
+  documentsDeleted: number;
+}> {
+  const result = await pool.query("DELETE FROM documents");
+  return { documentsDeleted: result.rowCount ?? 0 };
+}

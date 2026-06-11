@@ -68,20 +68,11 @@ function formatSource(src: AnsweredSource, index: number): string {
   const lines: string[] = [];
   const num = `  [${index + 1}] `;
 
-  if (src.threadTitle) {
-    const threadIdx =
-      src.chunkIndex !== undefined ? `Thread #${src.chunkIndex + 1}` : "Thread";
-    lines.push(`${num}📧 ${threadIdx}: ${src.threadTitle}`);
-    lines.push(`       Source: ${src.source}, chunk ${src.chunkIndex}`);
-    const datePart = src.dateRange ? `Date: ${src.dateRange}  |  ` : "";
-    lines.push(`       ${datePart}Score: ${src.score.toFixed(4)}`);
-  } else {
-    lines.push(`${num}${src.source}, chunk ${src.chunkIndex}`);
-    if (src.title) {
-      lines.push(`       Title: ${src.title}`);
-    }
-    lines.push(`       Score: ${src.score.toFixed(4)}`);
+  lines.push(`${num}${src.source}, chunk ${src.chunkIndex}`);
+  if (src.title) {
+    lines.push(`       Title: ${src.title}`);
   }
+  lines.push(`       Score: ${src.score.toFixed(4)}`);
 
   return lines.join("\n");
 }

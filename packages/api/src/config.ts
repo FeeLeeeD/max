@@ -15,9 +15,14 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? "*")
   .map((o) => o.trim())
   .filter((o) => o.length > 0);
 
+// Shared bearer token guarding the /admin routes. Optional: when unset the
+// admin surface is disabled (the middleware returns 503), so we don't throw.
+const adminToken = process.env.ADMIN_TOKEN || undefined;
+
 export const apiConfig = Object.freeze({
   port,
   allowedOrigins,
+  adminToken,
 });
 
 export type ApiConfig = typeof apiConfig;
