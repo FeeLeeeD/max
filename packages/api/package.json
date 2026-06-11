@@ -5,13 +5,21 @@
   "type": "module",
   "main": "./dist/index.js",
   "scripts": {
-    "hello": "tsx src/hello.ts",
+    "dev": "tsx watch src/index.ts",
     "build": "tsc --build",
-    "dev": "tsx watch src/hello.ts",
+    "start": "node dist/index.js",
     "clean": "rm -rf dist *.tsbuildinfo",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@max/shared": "workspace:*"
+    "@max/sandbox": "workspace:*",
+    "@hono/node-server": "^2.0.4",
+    "hono": "^4.12.25",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3"
   }
 }

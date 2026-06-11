@@ -3,6 +3,15 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "exports": {
+    "./rag": "./src/rag.ts",
+    "./db": "./src/db.ts",
+    "./search": "./src/search.ts",
+    "./repository": "./src/repository.ts",
+    "./embedder": "./src/embedder.ts",
+    "./config": "./src/config.ts",
+    "./llm": "./src/llm.ts"
+  },
   "scripts": {
     "db:migrate": "tsx src/scripts/migrate.ts",
     "test:embed": "tsx src/scripts/test-embed.ts",
