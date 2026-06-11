@@ -52,3 +52,5 @@ data/output/*
 # kb-tool packaging artifacts
 packages/kb-tool/release/
 packages/kb-tool/dist/
+
+data/
