@@ -1,0 +1,33 @@
+---
+description: Single-document indexing must go through ingestDocument(). Read before adding or changing any code that indexes a document (CLI ingest, admin API route).
+globs: packages/sandbox/src/ingestDocument.ts,packages/sandbox/src/scripts/ingest.ts,packages/api/**
+alwaysApply: false
+---
+
+# Single-document indexing goes through `ingestDocument()`
+
+`packages/sandbox/src/ingestDocument.ts` (`ingestDocument()`) is the single source
+of truth for indexing ONE document: hash → idempotency check → `upsertDocument`
+→ `deleteChunksForDocument` → `chunkMarkdown` → `embedBatch` → `insertChunks`.
+
+## Invariant
+
+- Any caller that needs to index a document (the CLI script
+  `packages/sandbox/src/scripts/ingest.ts`, the admin API route under
+  `packages/api/**`, future batch tools) MUST call `ingestDocument()`.
+- Do NOT re-implement the chunk → embed → insert pipeline anywhere else. If the
+  pipeline needs to change (metadata shape, hashing, idempotency rules), change
+  it in `ingestDocument.ts` so every caller stays consistent.
+
+## Boundaries
+
+- `ingestDocument()` is pure-core: it does NOT read files, log to `console.*`, or
+  catch errors. Callers own file/HTTP I/O, reporting, and error handling, and map
+  the returned `IngestOutcome` (`indexed` / `skipped` / `empty`) to their own UX.
+- Keep it that way: do not add filesystem or HTTP concerns to `ingestDocument.ts`.
+
+## Cross-references
+
+- Core: `packages/sandbox/src/ingestDocument.ts` (`ingestDocument`).
+- Exported as `@max/sandbox/ingest` (see `packages/sandbox/package.json`).
+- CLI caller: `packages/sandbox/src/scripts/ingest.ts`.

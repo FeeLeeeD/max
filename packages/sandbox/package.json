@@ -8,6 +8,7 @@
     "./db": "./src/db.ts",
     "./search": "./src/search.ts",
     "./repository": "./src/repository.ts",
+    "./ingest": "./src/ingestDocument.ts",
     "./embedder": "./src/embedder.ts",
     "./config": "./src/config.ts",
     "./llm": "./src/llm.ts"
