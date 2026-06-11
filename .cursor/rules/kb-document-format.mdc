@@ -1,44 +1,62 @@
 ---
-description: Contract between the kb-tool extraction prompt and the RAG chunker. Read before modifying document format or chunking.
-globs: packages/kb-tool/**,packages/sandbox/src/chunker*.ts,packages/sandbox/src/chunk.ts
+description: Contract between the kb-tool extraction prompt and the RAG markdown chunker. Read before modifying KB document format or chunking logic.
+globs: packages/kb-tool/**,packages/sandbox/src/markdownChunker.ts,packages/sandbox/src/chunker.ts,packages/sandbox/src/emailThreadChunker.ts
 alwaysApply: false
 ---
 
-# KB document format ↔ chunker contract
+# KB document format ↔ markdown chunker contract
 
-There is an implicit contract between two artifacts:
+Two artifacts share an implicit contract:
 
-- **Producer:** `EXTRACTION_SYSTEM_PROMPT` in `packages/kb-tool/src/prompts/extraction.ts` — turns raw anonymized docs (support emails, transcripts, articles) into structured markdown for the knowledge base.
-- **Consumer:** the header-aware chunker in `packages/sandbox/src/` (`chunker.ts`, soon to be the production ingest path) — splits that markdown into chunks for embedding and retrieval.
+- **Producer:** `EXTRACTION_SYSTEM_PROMPT` (`packages/kb-tool/src/prompts/extraction.ts`) — an LLM system prompt that turns raw anonymized docs (support emails, transcripts, articles) into structured markdown for the KB. Output always has a heading hierarchy (`#` title, `**Topics:**`/`**Date:**` metadata lines, then `##`/`###` sections), but heading **names are not fixed** and change as the prompt evolves.
+- **Consumer:** the header-aware markdown chunker (`packages/sandbox/src/markdownChunker.ts` — may not exist yet) — splits that markdown into chunks for embedding/retrieval by walking heading **structure**, never heading names.
 
-The chunker does **not** hardcode heading names. It relies on the *structural shape* of the markdown the prompt emits. Editing the prompt without honoring that shape silently degrades retrieval — no error is thrown.
+Breaking this contract throws no error. It silently degrades retrieval.
 
 ## 1. The structural contract
 
-The chunker splits along **heading structure**, not heading names:
+The chunker splits along **heading structure, not heading names**. It:
 
-- Parses the document into a tree of sections by markdown heading level (`#`, `##`, `###`, …).
-- Chunks at the level of **leaf sections** (deepest headings): a section with sub-headings is chunked by those; a section with none becomes a chunk itself.
-- Optionally prepends a **breadcrumb** (document title + ancestor headings) to each chunk's embedded text.
-- Falls back to paragraph-based splitting **only** when a single leaf section exceeds the token limit (~800 tokens).
-- Treats content **before the first heading** (e.g. `**Topics:**`, `**Date:**` lines) as document metadata, not as a chunk.
+- Parses the document into a tree of sections by markdown ATX heading level (`#`, `##`, `###`, …).
+- Chunks at the level of **leaf sections** (deepest headings): a section with sub-headings recurses into them; a section with none becomes a chunk itself.
+- Optionally prepends a **breadcrumb** (document title + ancestor headings) to each chunk's *embedded* text only — never its stored/displayed text.
+- Reuses the paragraph chunker (`chunkText` in `chunker.ts`) as a **fallback** to split any single leaf section exceeding the ~800-token target. This mirrors how `emailThreadChunker.ts` already wraps `chunkText`.
+- Treats content **before the first heading** (the `# title` line plus `**Topics:**` / `**Date:**` metadata lines) as document metadata, **not** a content chunk.
 
-## 2. Invariants to preserve when editing the prompt
+This **generalizes the existing `emailThreadChunker.ts` pattern** (H3 splitting via `splitByH3` + `chunkText` fallback for oversized sections + greedy packing to ~800 tokens + `mergeTinyTrailingChunks`) to **arbitrary heading depth**. Read `packages/sandbox/src/emailThreadChunker.ts` as the reference implementation for style and shape.
 
-- You MAY rename headings, add/remove topical sections, and change wording and instructions.
-- You MUST keep output as well-formed markdown with a clear heading hierarchy. The single most important property: **each retrievable unit of knowledge is its own leaf section under a heading.** For Q&A content, one heading per question. For articles, one heading per topic.
-- You MUST NOT flatten everything into one giant section with no sub-headings — that turns the whole doc into one or a few oversized chunks.
-- You MUST NOT bury distinct questions/topics as inline paragraphs under a single heading — they won't be retrievable independently.
-- You SHOULD keep a self-contained summary-style section (whatever it's named). It serves as a high-recall standalone chunk that often matches user queries better than detailed Q&A phrasing.
-- Metadata lines before the first heading are fine and get extracted into chunk metadata. If you keep them, keep them as `**Key:** value` lines.
+## 2. Invariants to preserve when editing the extraction prompt
+
+You MAY:
+
+- Rename headings, add/remove topical sections, change wording and instructions.
+
+You MUST:
+
+- Keep output as well-formed markdown with a clear heading hierarchy.
+- **Make each independently retrievable unit of knowledge its own leaf section under a heading** — the single most important property. For Q&A content: one heading per question. For articles: one heading per topic.
+
+You MUST NOT:
+
+- Flatten everything into one big section with no sub-headings (the whole doc collapses into one oversized chunk).
+- Bury distinct questions/topics as inline paragraphs under a single shared heading (they stop being independently retrievable).
+
+You SHOULD:
+
+- Keep a self-contained summary-style section (whatever it is named) — a high-recall standalone chunk that often matches user queries better than the detailed phrasing underneath.
+- Keep any metadata lines before the first heading in `**Key:** value` shape, each on its own line (topics, date are extracted into chunk metadata).
+
+> Heading names like a "summary", "question", or "details" section are **illustrative only** — never required strings. The contract is about structure, not labels.
 
 ## 3. Why this matters
 
-RAG retrieval quality depends on each chunk being one self-contained idea. The prompt does the structuring work; the chunker trusts that structure. Breaking the contract doesn't raise an error — it silently produces worse answers, which is hard to debug after the fact.
+RAG retrieval quality depends on each chunk being one self-contained idea. The prompt does the structuring; the chunker trusts that structure. Breaking the contract raises no error — it silently degrades answer quality, which is hard to debug later.
 
-## 4. Cross-reference
+## 4. Cross-references
 
-- Canonical extraction prompt: `packages/kb-tool/src/prompts/extraction.ts` (`EXTRACTION_SYSTEM_PROMPT`).
-- Chunker implementation: `packages/sandbox/src/` (`chunker.ts`).
+- Extraction prompt: `packages/kb-tool/src/prompts/extraction.ts` (`EXTRACTION_SYSTEM_PROMPT`). *(present in this checkout)*
+- Markdown chunker: `packages/sandbox/src/markdownChunker.ts`. *(may not exist yet at rule-creation time)*
+- Reference implementation: `packages/sandbox/src/emailThreadChunker.ts`.
+- Paragraph fallback chunker: `packages/sandbox/src/chunker.ts` (`chunkText`).
 
-A change to either side should prompt a review of the other.
+A change to the extraction prompt should prompt a review of the chunker, and vice versa.
