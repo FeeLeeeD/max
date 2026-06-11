@@ -1,0 +1,44 @@
+---
+description: Contract between the kb-tool extraction prompt and the RAG chunker. Read before modifying document format or chunking.
+globs: packages/kb-tool/**,packages/sandbox/src/chunker*.ts,packages/sandbox/src/chunk.ts
+alwaysApply: false
+---
+
+# KB document format ↔ chunker contract
+
+There is an implicit contract between two artifacts:
+
+- **Producer:** `EXTRACTION_SYSTEM_PROMPT` in `packages/kb-tool/src/prompts/extraction.ts` — turns raw anonymized docs (support emails, transcripts, articles) into structured markdown for the knowledge base.
+- **Consumer:** the header-aware chunker in `packages/sandbox/src/` (`chunker.ts`, soon to be the production ingest path) — splits that markdown into chunks for embedding and retrieval.
+
+The chunker does **not** hardcode heading names. It relies on the *structural shape* of the markdown the prompt emits. Editing the prompt without honoring that shape silently degrades retrieval — no error is thrown.
+
+## 1. The structural contract
+
+The chunker splits along **heading structure**, not heading names:
+
+- Parses the document into a tree of sections by markdown heading level (`#`, `##`, `###`, …).
+- Chunks at the level of **leaf sections** (deepest headings): a section with sub-headings is chunked by those; a section with none becomes a chunk itself.
+- Optionally prepends a **breadcrumb** (document title + ancestor headings) to each chunk's embedded text.
+- Falls back to paragraph-based splitting **only** when a single leaf section exceeds the token limit (~800 tokens).
+- Treats content **before the first heading** (e.g. `**Topics:**`, `**Date:**` lines) as document metadata, not as a chunk.
+
+## 2. Invariants to preserve when editing the prompt
+
+- You MAY rename headings, add/remove topical sections, and change wording and instructions.
+- You MUST keep output as well-formed markdown with a clear heading hierarchy. The single most important property: **each retrievable unit of knowledge is its own leaf section under a heading.** For Q&A content, one heading per question. For articles, one heading per topic.
+- You MUST NOT flatten everything into one giant section with no sub-headings — that turns the whole doc into one or a few oversized chunks.
+- You MUST NOT bury distinct questions/topics as inline paragraphs under a single heading — they won't be retrievable independently.
+- You SHOULD keep a self-contained summary-style section (whatever it's named). It serves as a high-recall standalone chunk that often matches user queries better than detailed Q&A phrasing.
+- Metadata lines before the first heading are fine and get extracted into chunk metadata. If you keep them, keep them as `**Key:** value` lines.
+
+## 3. Why this matters
+
+RAG retrieval quality depends on each chunk being one self-contained idea. The prompt does the structuring work; the chunker trusts that structure. Breaking the contract doesn't raise an error — it silently produces worse answers, which is hard to debug after the fact.
+
+## 4. Cross-reference
+
+- Canonical extraction prompt: `packages/kb-tool/src/prompts/extraction.ts` (`EXTRACTION_SYSTEM_PROMPT`).
+- Chunker implementation: `packages/sandbox/src/` (`chunker.ts`).
+
+A change to either side should prompt a review of the other.
