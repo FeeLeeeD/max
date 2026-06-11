@@ -1,4 +1,4 @@
-import { ChevronLeft, X } from "lucide-react";
+import { X } from "lucide-react";
 
 interface ChatHeaderProps {
   onClose?: () => void;
@@ -11,22 +11,22 @@ export function ChatHeader({ onClose }: ChatHeaderProps) {
     <header className="flex h-[76px] shrink-0 items-center gap-4 border-b border-max-divider px-6 py-2">
       {/* DERIVED: not in Figma — review. The frame shows a back arrow for a
           thread-list nav we don't have here, so it's decorative/disabled. */}
-      <button
+      {/* <button
         type="button"
         aria-label="Back"
         disabled
         className="flex size-5 shrink-0 items-center justify-center text-max-text-60 disabled:opacity-40"
       >
         <ChevronLeft className="size-5" />
-      </button>
+      </button> */}
 
       <div className="flex min-w-0 flex-1 items-center gap-2">
         {/* DERIVED: not in Figma — review. The frame's title is the active
             question (we have no per-thread subject), so we use a product title. */}
         <p className="min-w-0 flex-1 truncate text-lg font-semibold leading-[1.4] tracking-[-0.01em] text-max-text-60">
-          Ask Max
+          Max <span className="font-mono font-normal">[testing]</span>
         </p>
-        <span className="shrink-0 text-base leading-6 text-max-text-30">FAQ</span>
+        <span className="text-xs text-max-text-30">v0.0.1</span>
       </div>
 
       {/* DERIVED: not in Figma — review. No widget host to close in this page,

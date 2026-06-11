@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ThumbsDown, ThumbsUp } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Tooltip } from "radix-ui";
 
 // The Figma "Thumbs" block sits under each assistant answer. The icons and
 // layout come from Figma, but the behavior does NOT.
@@ -22,6 +23,7 @@ export function MessageActions() {
           "rounded-[3px] p-0.5 text-max-text-30 transition-colors hover:text-max-text-80",
           vote === "up" && "text-max-link",
         )}
+        disabled
       >
         <ThumbsUp className="size-4" />
       </button>
@@ -34,6 +36,7 @@ export function MessageActions() {
           "rounded-[3px] p-0.5 text-max-text-30 transition-colors hover:text-max-text-80",
           vote === "down" && "text-max-link",
         )}
+        disabled
       >
         <ThumbsDown className="size-4" />
       </button>

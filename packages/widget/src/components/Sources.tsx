@@ -9,7 +9,7 @@ interface SourcesProps {
 
 // Renders a value the API gives as either a 0–1 similarity or a raw score.
 function formatScore(score: number): string {
-  if (score > 0 && score <= 1) return `${Math.round(score * 100)}%`;
+  if (score > 0 && score <= 1) return `${Math.round(score * 10000) / 100}%`;
   return score.toFixed(2);
 }
 
