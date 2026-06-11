@@ -1,0 +1,35 @@
+---
+description: Data-layer boundary for the MAX widget (packages/widget)
+globs: packages/widget/**/*
+alwaysApply: false
+---
+
+# widget — data layer boundary
+
+The widget talks to the backend through ONE narrow seam. Keep it that way as
+the real UI lands in W3/W4.
+
+## Invariants
+
+- **All API access goes through `src/api/chatClient.ts`.** No raw `fetch`,
+  `axios`, or `XMLHttpRequest` in components, hooks, or anywhere else.
+- **Components read and write chat state via the Zustand store**
+  (`src/store/chatStore.ts`) — never call `chatClient` directly from a
+  component. Components dispatch actions (`sendMessage`, `reset`) and read with
+  selectors (`useChatStore((s) => s.messages)`).
+- **The `/chat` contract types live in `chatClient.ts`** (`ChatMessage`,
+  `ChatSource`, `ChatResponse`) and MUST match
+  `packages/api/src/routes/chat.ts` exactly. Update both together. Note the
+  response has no `threadTitle` / `subject` / `dateRange` fields — those were
+  removed.
+- **The backend is single-turn:** `sendChat` sends only the last user message,
+  not history. Don't quietly switch to multi-turn here without also changing
+  the API.
+- **Base URL comes from `src/config.ts` (`apiUrl`)** — don't read
+  `import.meta.env` or hardcode URLs elsewhere.
+
+## Why
+
+This seam keeps networking testable and the store the single source of truth
+for chat state, so UI work (W3) and the typewriter effect (W4) can't smuggle in
+ad-hoc network calls or contract drift.
