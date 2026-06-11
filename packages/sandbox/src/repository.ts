@@ -65,10 +65,9 @@ export async function upsertDocument(args: {
   title: string | null;
   contentHash: string;
 }): Promise<DocumentRow> {
-  // document_type column is being retired; hardcoded until the migration drops it (step 2c).
   const rows = await query<RawDocumentRow>(
-    `INSERT INTO documents (source, title, content_hash, document_type)
-     VALUES ($1, $2, $3, 'article')
+    `INSERT INTO documents (source, title, content_hash)
+     VALUES ($1, $2, $3)
      ON CONFLICT (source) DO UPDATE
        SET title = EXCLUDED.title,
            content_hash = EXCLUDED.content_hash,
