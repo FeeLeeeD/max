@@ -1,0 +1,75 @@
+---
+description: General context and conventions for the MAX API server (packages/api)
+globs: packages/api/**/*
+alwaysApply: false
+---
+
+# api — MAX HTTP Server
+
+The public-facing HTTP backend for MAX. A thin **Hono** server that exposes
+the RAG pipeline (`@max/sandbox`) over HTTP. It owns transport concerns —
+routing, request validation, CORS, error shaping, process lifecycle — and
+delegates all retrieval/LLM logic to the sandbox package. Keep business logic
+out of here; this layer stays thin.
+
+## Stack
+
+- TypeScript strict, ESM. Extends `../../tsconfig.base.json` (`moduleResolution: bundler`, `composite`).
+- Node 20+, run with `tsx` in dev. `@hono/node-server` adapter (not edge/Workers).
+- Hono 4 for HTTP, `zod` for request validation.
+- Depends on `@max/sandbox` (workspace) for `rag` (`ask`), `db` (`query`, `closePool`), and `config`.
+
+## Layout
+
+```
+src/
+  index.ts            # entry — serve(app), graceful shutdown
+  app.ts              # Hono app: CORS, route mounting, notFound, onError
+  config.ts           # API env (PORT, ALLOWED_ORIGINS), frozen apiConfig
+  routes/
+    chat.ts           # POST /chat — validate, call ask(), shape response
+    health.ts         # GET /health — DB ping (SELECT 1)
+```
+
+## Conventions
+
+- **Relative imports use `.js` extensions** (`./app.js`, `./config.js`) — TS rootDir is `src`, output is ESM. Cross-package imports use subpath exports (`@max/sandbox/rag`).
+- Each route is its own `new Hono()` exported as a named `*Route`, mounted in `app.ts` via `app.route("/path", ...)`. One file per route group.
+- **Validate all input with zod** at the top of the handler. On failure return `400` with `{ error, details: parsed.error.flatten() }`. Parse JSON in a try/catch and return `400 { error: "Invalid JSON body" }` on failure.
+- **Never leak internals.** Per-route `try/catch` logs the real error (`console.error`) and returns a generic message (e.g. `500 { error: "Failed to generate answer" }`). The app-level `onError` in `app.ts` is the final backstop — keep it returning a generic 500.
+- Responses are always `c.json(...)`. Map sandbox results to an explicit response shape (see `chat.ts`) — don't spread internal objects straight to the client.
+- Named exports only, functions over classes, `async/await`.
+
+## Config & env
+
+- `config.ts` imports `@max/sandbox/config` **first** — that triggers dotenv loading the root `.env` and validates `DATABASE_URL` / `PORTKEY_API_KEY` at startup. Keep that import at the top.
+- API-specific vars: `PORT` (default 8000, validated as a real port) and `ALLOWED_ORIGINS` (comma-separated, `*` = any). Read them only in `config.ts`; export via the frozen `apiConfig` so config is the single source of truth.
+- No `.env` lives in this package — it's the root `.env` (copy from root `.env.example`).
+
+## Lifecycle
+
+- `index.ts` starts the server and registers `SIGINT`/`SIGTERM` handlers that close the HTTP server then `closePool()` from `@max/sandbox/db`. Preserve the idempotent `shuttingDown` guard and pool cleanup when editing startup.
+
+## Current behavior to preserve
+
+- `/chat` is **single-turn**: it picks the last `user` message and ignores history. Don't quietly switch to multi-turn without flagging it.
+- CORS is intentionally permissive (`cors()`) for dev; tightening it (using `apiConfig.allowedOrigins`) is a planned step — note it, don't silently rewire.
+
+## Commands
+
+Run from `packages/api/` (or via pnpm filter from the repo root):
+
+- `pnpm dev` — `tsx watch src/index.ts` (hot reload)
+- `pnpm build` — `tsc --build`
+- `pnpm start` — `node dist/index.js`
+- `pnpm typecheck` — `tsc --noEmit`
+- `pnpm clean` — remove `dist` + build info
+
+## Things not to do
+
+- Don't put RAG/DB/LLM logic in routes — call into `@max/sandbox`. This layer is transport only.
+- Don't read `process.env` outside `config.ts`.
+- Don't return raw errors or stack traces to clients.
+- Don't skip zod validation on request bodies.
+- Don't drop `.js` extensions on relative imports — the build will break.
+- Don't add new dependencies without flagging it — see the root rule.
