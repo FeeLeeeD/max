@@ -2,15 +2,9 @@ import { resolve } from "node:path";
 import { config } from "../config.js";
 import { pool, closePool } from "../db.js";
 import { sha256 } from "../hash.js";
-import { loadArticles, type ArticleFile } from "../articles.js";
-import { chunkText } from "../chunker.js";
+import { loadArticles, type MarkdownFile } from "../articles.js";
+import { chunkMarkdown } from "../markdownChunker.js";
 import { embedBatch } from "../embedder.js";
-import {
-  detectDocumentTypeFromFilename,
-  type DocumentType,
-} from "../documentType.js";
-import { parseEmailThreads } from "../emailThreadParser.js";
-import { chunkEmailThreads } from "../emailThreadChunker.js";
 import {
   findDocumentBySource,
   upsertDocument,
@@ -21,6 +15,11 @@ import {
 
 const ARTICLES_DIR = resolve(config.projectRoot, "data/articles");
 
+// Experiment toggle: when true, each chunk's embedded text is prefixed with its
+// breadcrumb (doc title + ancestor headings). We'll evaluate this against
+// retrieval quality before deciding whether to keep it.
+const INCLUDE_BREADCRUMB = true;
+
 interface Stats {
   processed: number;
   skipped: number;
@@ -30,108 +29,72 @@ interface Stats {
 interface PreparedChunk {
   chunkIndex: number;
   content: string;
+  embeddingText: string;
   tokenCount: number;
   metadata: Record<string, unknown>;
 }
 
-function prepareArticleChunks(article: ArticleFile): PreparedChunk[] {
-  return chunkText(article.content).map((c) => ({
-    chunkIndex: c.chunkIndex,
-    content: c.content,
-    tokenCount: c.tokenCount,
-    metadata: { title: article.title },
-  }));
-}
-
-interface PreparedEmailChunks {
-  chunks: PreparedChunk[];
-  threadCount: number;
-}
-
-function prepareEmailThreadChunks(article: ArticleFile): PreparedEmailChunks {
-  const threads = parseEmailThreads(article.content);
-  const chunks = chunkEmailThreads(threads).map((c) => ({
-    chunkIndex: c.chunkIndex,
-    content: c.content,
-    tokenCount: c.tokenCount,
-    metadata: {
-      documentType: "email_thread_collection" as const,
-      threadIndex: c.threadIndex,
-      threadTitle: c.threadTitle,
-      subject: c.subject,
-      dateRange: c.dateRange,
-    },
-  }));
-  return { chunks, threadCount: threads.length };
-}
-
 async function ingestArticle(
-  article: ArticleFile,
+  file: MarkdownFile,
   stats: Stats,
 ): Promise<void> {
-  const documentType: DocumentType = detectDocumentTypeFromFilename(
-    article.source,
-  );
+  const { meta, chunks } = chunkMarkdown(file.raw, {
+    includeBreadcrumb: INCLUDE_BREADCRUMB,
+  });
 
-  // Meeting transcripts are recognized by filename but not yet implemented.
-  // Skip cleanly so new `.transcript.md` files don't crash ingest.
-  if (documentType === "meeting_transcript") {
-    console.log(
-      `[SKIP] ${article.source}: meeting transcripts not yet supported`,
-    );
-    stats.skipped += 1;
-    return;
-  }
+  // Filename fallback for the title lives here, not in the chunker.
+  const title = meta.title ?? file.source.replace(/\.md$/i, "");
 
-  const contentHash = sha256(article.content);
-  const existing = await findDocumentBySource(article.source);
+  // Hash the raw file, since that's the unit of change.
+  const contentHash = sha256(file.raw);
+  const existing = await findDocumentBySource(file.source);
 
-  // Skip only if content AND type are both unchanged — re-routing a file
-  // from article to email_thread_collection must rebuild its chunks even if
-  // the bytes on disk happen to match.
-  if (
-    existing &&
-    existing.contentHash === contentHash &&
-    existing.documentType === documentType
-  ) {
+  if (existing && existing.contentHash === contentHash) {
     const chunkCount = await countChunksForDocument(existing.id);
     if (chunkCount > 0) {
-      console.log(`[SKIP] ${article.source} (unchanged, ${documentType})`);
+      console.log(`[SKIP] ${file.source} (unchanged)`);
       stats.skipped += 1;
       return;
     }
   }
 
-  console.log(`[PROCESS] ${article.source} (${documentType})`);
+  console.log(`[PROCESS] ${file.source}`);
 
   const doc = await upsertDocument({
-    source: article.source,
-    title: article.title,
+    source: file.source,
+    title,
     contentHash,
-    documentType,
   });
 
   await deleteChunksForDocument(doc.id);
 
-  let prepared: PreparedChunk[];
-  let countsSuffix: string;
-  if (documentType === "email_thread_collection") {
-    const result = prepareEmailThreadChunks(article);
-    prepared = result.chunks;
-    countsSuffix = `${result.threadCount} threads → ${prepared.length} chunks`;
-  } else {
-    prepared = prepareArticleChunks(article);
-    countsSuffix = `${prepared.length} chunks`;
-  }
+  const prepared: PreparedChunk[] = chunks.map((chunk) => {
+    const metadata: Record<string, unknown> = {
+      title,
+      heading: chunk.heading,
+      headingPath: chunk.headingPath,
+      partIndex: chunk.partIndex,
+      topics: meta.topics,
+    };
+    if (meta.date !== null) metadata.date = meta.date;
+    return {
+      chunkIndex: chunk.chunkIndex,
+      content: chunk.content,
+      embeddingText: chunk.embeddingText,
+      tokenCount: chunk.tokenCount,
+      metadata,
+    };
+  });
 
   if (prepared.length === 0) {
     console.log(
-      `[WARN] ${article.source}: chunker produced 0 chunks (empty content?), skipping`,
+      `[WARN] ${file.source}: chunker produced 0 chunks (empty content?), skipping`,
     );
     return;
   }
 
-  const embeddings = await embedBatch(prepared.map((c) => c.content));
+  // Embed the breadcrumb-augmented text, but store the clean content.
+  const embeddings = await embedBatch(prepared.map((c) => c.embeddingText));
 
   const insertRows = prepared.map((chunk, i) => ({
     documentId: doc.id,
@@ -143,7 +106,9 @@ async function ingestArticle(
   }));
 
   const inserted = await insertChunks(insertRows);
-  console.log(`[OK] ${article.source}: ${countsSuffix} inserted (${inserted})`);
+  console.log(
+    `[OK] ${file.source}: ${prepared.length} chunks inserted (${inserted})`,
+  );
   stats.processed += 1;
 }
 
@@ -157,8 +122,8 @@ async function totalChunks(): Promise<number> {
 // Flag any DB documents whose source filename is no longer present on disk.
 // Ingest never auto-deletes — a rename or removal is an intentional action
 // that the operator has to reconcile manually.
-async function reportOrphans(articles: ArticleFile[]): Promise<void> {
-  const onDisk = new Set(articles.map((a) => a.source));
+async function reportOrphans(files: MarkdownFile[]): Promise<void> {
+  const onDisk = new Set(files.map((f) => f.source));
   const { rows } = await pool.query<{ source: string }>(
     "SELECT source FROM documents ORDER BY source",
   );
@@ -171,23 +136,23 @@ async function reportOrphans(articles: ArticleFile[]): Promise<void> {
 }
 
 async function main(): Promise<number> {
-  const articles = await loadArticles(ARTICLES_DIR);
+  const files = await loadArticles(ARTICLES_DIR);
 
-  if (articles.length === 0) {
+  if (files.length === 0) {
     console.log(`[WARN] No .md articles found in ${ARTICLES_DIR}`);
     return 0;
   }
 
-  await reportOrphans(articles);
+  await reportOrphans(files);
 
   const stats: Stats = { processed: 0, skipped: 0, errors: 0 };
 
-  for (const article of articles) {
+  for (const file of files) {
     try {
-      await ingestArticle(article, stats);
+      await ingestArticle(file, stats);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      console.log(`[ERROR] ${article.source}: ${message}`);
+      console.log(`[ERROR] ${file.source}: ${message}`);
       stats.errors += 1;
     }
   }
@@ -196,7 +161,7 @@ async function main(): Promise<number> {
 
   console.log("");
   console.log("=== Ingestion report ===");
-  console.log(`Total articles:      ${articles.length}`);
+  console.log(`Total articles:      ${files.length}`);
   console.log(`Processed:           ${stats.processed} (re)indexed`);
   console.log(`Skipped:             ${stats.skipped} (unchanged)`);
   if (stats.errors > 0) {

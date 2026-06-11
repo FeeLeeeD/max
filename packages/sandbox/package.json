@@ -17,7 +17,6 @@
     "test:embed": "tsx src/scripts/test-embed.ts",
     "test:chunker": "tsx src/scripts/test-chunker.ts",
     "test:markdown-chunker": "tsx src/scripts/test-markdown-chunker.ts",
-    "test:email-parser": "tsx src/scripts/test-email-parser.ts",
     "ingest": "tsx src/scripts/ingest.ts",
     "search": "tsx src/scripts/search.ts",
     "ask": "tsx src/scripts/ask.ts",

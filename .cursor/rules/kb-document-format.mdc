@@ -1,6 +1,6 @@
 ---
 description: Contract between the kb-tool extraction prompt and the RAG markdown chunker. Read before modifying KB document format or chunking logic.
-globs: packages/kb-tool/**,packages/sandbox/src/markdownChunker.ts,packages/sandbox/src/chunker.ts,packages/sandbox/src/emailThreadChunker.ts
+globs: packages/kb-tool/**,packages/sandbox/src/markdownChunker.ts,packages/sandbox/src/chunker.ts
 alwaysApply: false
 ---
 
@@ -8,8 +8,8 @@ alwaysApply: false
 
 Two artifacts share an implicit contract:
 
-- **Producer:** `EXTRACTION_SYSTEM_PROMPT` (`packages/kb-tool/src/prompts/extraction.ts`) — an LLM system prompt that turns raw anonymized docs (support emails, transcripts, articles) into structured markdown for the KB. Output always has a heading hierarchy (`#` title, `**Topics:**`/`**Date:**` metadata lines, then `##`/`###` sections), but heading **names are not fixed** and change as the prompt evolves.
-- **Consumer:** the header-aware markdown chunker (`packages/sandbox/src/markdownChunker.ts`, `chunkMarkdown()`) — splits that markdown into chunks for embedding/retrieval by walking heading **structure**, never heading names.
+- **Producer:** `EXTRACTION_SYSTEM_PROMPT` (`packages/kb-tool/src/prompts/extraction.ts`) — an LLM system prompt that turns raw anonymized docs (support emails, transcripts, articles) into a single unified structured-markdown format for the KB. Output always has a heading hierarchy (`#` title, `**Topics:**`/`**Date:**` metadata lines, then `##`/`###` sections), but heading **names are not fixed** and change as the prompt evolves.
+- **Consumer:** the header-aware markdown chunker (`packages/sandbox/src/markdownChunker.ts`, `chunkMarkdown()`) — the canonical implementation that splits that markdown into chunks for embedding/retrieval by walking heading **structure**, never heading names. There is no per-document-type branching: every KB document flows through this one chunker.
 
 Breaking this contract throws no error. It silently degrades retrieval.
 
@@ -17,13 +17,11 @@ Breaking this contract throws no error. It silently degrades retrieval.
 
 The chunker splits along **heading structure, not heading names**. It:
 
-- Parses the document into a tree of sections by markdown ATX heading level (`#`, `##`, `###`, …).
+- Parses the document into a tree of sections by markdown ATX heading level (`#`, `##`, `###`, …) at **arbitrary heading depth**.
 - Chunks at the level of **leaf sections** (deepest headings): a section with sub-headings recurses into them; a section with none becomes a chunk itself.
 - Optionally prepends a **breadcrumb** (document title + ancestor headings) to each chunk's *embedded* text only — never its stored/displayed text.
-- Reuses the paragraph chunker (`chunkText` in `chunker.ts`) as a **fallback** to split any single leaf section exceeding the ~800-token target. This mirrors how `emailThreadChunker.ts` already wraps `chunkText`.
+- Reuses the paragraph chunker (`chunkText` in `chunker.ts`) as a **fallback** to split any single leaf section exceeding the ~800-token target.
 - Treats content **before the first heading** (the `# title` line plus `**Topics:**` / `**Date:**` metadata lines) as document metadata, **not** a content chunk.
-
-This **generalizes the existing `emailThreadChunker.ts` pattern** (H3 splitting via `splitByH3` + `chunkText` fallback for oversized sections + greedy packing to ~800 tokens + `mergeTinyTrailingChunks`) to **arbitrary heading depth**. Read `packages/sandbox/src/emailThreadChunker.ts` as the reference implementation for style and shape.
 
 ## 2. Invariants to preserve when editing the extraction prompt
 
@@ -55,8 +53,7 @@ RAG retrieval quality depends on each chunk being one self-contained idea. The p
 ## 4. Cross-references
 
 - Extraction prompt: `packages/kb-tool/src/prompts/extraction.ts` (`EXTRACTION_SYSTEM_PROMPT`). *(present in this checkout)*
-- Markdown chunker: `packages/sandbox/src/markdownChunker.ts` (`chunkMarkdown()`). *(present in this checkout)*
-- Reference implementation: `packages/sandbox/src/emailThreadChunker.ts`.
+- Markdown chunker (canonical implementation): `packages/sandbox/src/markdownChunker.ts` (`chunkMarkdown()`). *(present in this checkout)*
 - Paragraph fallback chunker: `packages/sandbox/src/chunker.ts` (`chunkText`).
 
 A change to the extraction prompt should prompt a review of the chunker, and vice versa.

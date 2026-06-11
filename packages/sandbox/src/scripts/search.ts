@@ -105,57 +105,7 @@ function wrap(text: string, width: number): string[] {
   return lines;
 }
 
-function metaString(m: Record<string, unknown>, key: string): string | null {
-  const v = m[key];
-  return typeof v === "string" && v.length > 0 ? v : null;
-}
-
-function metaNumber(m: Record<string, unknown>, key: string): number | null {
-  const v = m[key];
-  return typeof v === "number" && Number.isFinite(v) ? v : null;
-}
-
-// Chunks from email threads carry their header block inline so retrieval is
-// self-contained. The CLI renders those fields separately above the preview,
-// so strip the leading header to avoid showing them twice.
-function stripThreadHeader(content: string): string {
-  if (!content.startsWith("[Thread #")) return content;
-  const sep = content.indexOf("\n\n");
-  if (sep === -1) return content;
-  return content.slice(sep + 2);
-}
-
-function formatEmailThreadResult(r: SearchResult, index: number): string {
-  const header = `─── Result ${index + 1} ───  score: ${r.score.toFixed(4)}`;
-  const threadIdx = metaNumber(r.metadata, "threadIndex");
-  const threadTitle = metaString(r.metadata, "threadTitle") ?? "(untitled)";
-  const subject = metaString(r.metadata, "subject") ?? "—";
-  const dateRange = metaString(r.metadata, "dateRange") ?? "—";
-
-  const idLabel = threadIdx !== null ? `#${threadIdx}` : "";
-  const subjectDate = `Subject: ${subject}  |  Date: ${dateRange}`;
-  const source = `Source: ${r.source} (chunk ${r.chunkIndex}${
-    r.tokenCount !== null ? `, ${r.tokenCount} tokens` : ""
-  })`;
-
-  const preview = truncate(stripThreadHeader(r.content), 300);
-  const body = wrap(preview, 80).join("\n");
-
-  return [
-    header,
-    `📧 Email Thread ${idLabel} — ${threadTitle}`,
-    subjectDate,
-    source,
-    "",
-    body,
-  ].join("\n");
-}
-
 function formatResult(r: SearchResult, index: number): string {
-  if (r.metadata["documentType"] === "email_thread_collection") {
-    return formatEmailThreadResult(r, index);
-  }
-
   const tokens =
     r.tokenCount !== null ? `, ${r.tokenCount} tokens` : "";
   const header = `─── Result ${index + 1} ───  score: ${r.score.toFixed(4)}`;

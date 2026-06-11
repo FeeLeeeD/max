@@ -1,42 +1,16 @@
 import { readdir, readFile, stat } from "node:fs/promises";
 import { resolve } from "node:path";
 
-export interface ArticleFile {
+export interface MarkdownFile {
   source: string;
-  title: string;
-  content: string;
+  raw: string;
 }
 
-// Pull the first H1 ("# ...") off the top of the file for the title; fall back
-// to the filename stem so every article is guaranteed to have one.
-function parseArticle(source: string, raw: string): ArticleFile {
-  const normalized = raw.replace(/\r\n/g, "\n");
-  const lines = normalized.split("\n");
-
-  let title: string | null = null;
-  let bodyStart = 0;
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]!;
-    if (line.trim() === "") continue;
-    const match = line.match(/^#\s+(.+?)\s*$/);
-    if (match) {
-      title = match[1]!.trim();
-      bodyStart = i + 1;
-    }
-    break;
-  }
-
-  if (title === null) {
-    title = source.replace(/\.md$/i, "");
-  }
-
-  const content = lines.slice(bodyStart).join("\n").trim();
-
-  return { source, title, content };
-}
-
-export async function loadArticles(articlesDir: string): Promise<ArticleFile[]> {
+// Title parsing now belongs to markdownChunker (via meta.title); this module
+// only locates and reads the raw markdown files.
+export async function loadArticles(
+  articlesDir: string,
+): Promise<MarkdownFile[]> {
   let entries: string[];
   try {
     const s = await stat(articlesDir);
@@ -53,10 +27,10 @@ export async function loadArticles(articlesDir: string): Promise<ArticleFile[]> 
   }
 
   const mdFiles = entries.filter((f) => f.toLowerCase().endsWith(".md")).sort();
-  const articles: ArticleFile[] = [];
+  const files: MarkdownFile[] = [];
   for (const filename of mdFiles) {
     const raw = await readFile(resolve(articlesDir, filename), "utf8");
-    articles.push(parseArticle(filename, raw));
+    files.push({ source: filename, raw });
   }
-  return articles;
+  return files;
 }
