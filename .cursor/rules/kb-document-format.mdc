@@ -9,7 +9,7 @@ alwaysApply: false
 Two artifacts share an implicit contract:
 
 - **Producer:** `EXTRACTION_SYSTEM_PROMPT` (`packages/kb-tool/src/prompts/extraction.ts`) — an LLM system prompt that turns raw anonymized docs (support emails, transcripts, articles) into structured markdown for the KB. Output always has a heading hierarchy (`#` title, `**Topics:**`/`**Date:**` metadata lines, then `##`/`###` sections), but heading **names are not fixed** and change as the prompt evolves.
-- **Consumer:** the header-aware markdown chunker (`packages/sandbox/src/markdownChunker.ts` — may not exist yet) — splits that markdown into chunks for embedding/retrieval by walking heading **structure**, never heading names.
+- **Consumer:** the header-aware markdown chunker (`packages/sandbox/src/markdownChunker.ts`, `chunkMarkdown()`) — splits that markdown into chunks for embedding/retrieval by walking heading **structure**, never heading names.
 
 Breaking this contract throws no error. It silently degrades retrieval.
 
@@ -55,7 +55,7 @@ RAG retrieval quality depends on each chunk being one self-contained idea. The p
 ## 4. Cross-references
 
 - Extraction prompt: `packages/kb-tool/src/prompts/extraction.ts` (`EXTRACTION_SYSTEM_PROMPT`). *(present in this checkout)*
-- Markdown chunker: `packages/sandbox/src/markdownChunker.ts`. *(may not exist yet at rule-creation time)*
+- Markdown chunker: `packages/sandbox/src/markdownChunker.ts` (`chunkMarkdown()`). *(present in this checkout)*
 - Reference implementation: `packages/sandbox/src/emailThreadChunker.ts`.
 - Paragraph fallback chunker: `packages/sandbox/src/chunker.ts` (`chunkText`).
 
