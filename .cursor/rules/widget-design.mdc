@@ -1,0 +1,36 @@
+---
+description: Design conventions for the MAX widget UI (packages/widget)
+globs: packages/widget/**/*
+alwaysApply: false
+---
+
+# widget — design conventions
+
+The widget UI is built from Figma frames in the "🧠 Application" file. Keep it
+consistent and themeable as more states land.
+
+## Conventions
+
+- **Use theme tokens, not hardcoded hex.** Colors/radii/spacing are mapped from
+  Figma into `src/index.css` as `--max-*` variables and exposed as utilities
+  (`bg-max-surface`, `text-max-text-80`, `border-max-card-border`,
+  `text-max-link`, `rounded-bubble`, `rounded-card`, `rounded-icon`, …). Add a
+  new token there when the design needs one; don't scatter `#hex` in components.
+- **Components live under `src/components/`** (one concern per file); shared
+  shadcn primitives stay in `src/components/ui/`. Add shadcn components through
+  the established New York / `components.json` setup.
+- **Icons come from `lucide-react`**, not exported Figma SVGs. The only bundled
+  asset is the Max mascot (`src/assets/max-avatar.svg`).
+- **Mark UI not present in Figma** with a `// DERIVED: not in Figma — review`
+  comment (empty/error/refusal states, the sources collapsible, score/preview,
+  feedback thumbs behavior, keyboard handling, page-level layout). This flags
+  exactly what a designer still needs to sign off on.
+- **No typewriter / streaming in render.** Answers display in full immediately
+  (the typewriter effect is a separate step). Render answers as plain text with
+  preserved line breaks; introducing a markdown renderer is a flagged change.
+
+## Why
+
+A real, unique design now exists. Funnelling colors/spacing through tokens keeps
+it themeable, and the `DERIVED` marker keeps the line between "matches Figma" and
+"our best guess" reviewable instead of invisible.

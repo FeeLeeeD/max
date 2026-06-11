@@ -43,6 +43,30 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* MAX widget design tokens — mapped from Figma (W3).
+     Names mirror the Figma variable groups so the design stays themeable;
+     prefer these utilities (bg-max-*, text-max-*, rounded-bubble, …) over
+     hardcoded hex values in widget components. */
+  --color-max-surface: var(--max-surface);
+  --color-max-surface-muted: var(--max-surface-muted);
+  --color-max-card: var(--max-card);
+  --color-max-card-border: var(--max-card-border);
+  --color-max-icon-bg: var(--max-icon-bg);
+  --color-max-divider: var(--max-divider);
+  --color-max-text-30: var(--max-text-30);
+  --color-max-text-60: var(--max-text-60);
+  --color-max-text-80: var(--max-text-80);
+  --color-max-text-100: var(--max-text-100);
+  --color-max-link: var(--max-link);
+  --color-max-primary: var(--max-primary);
+  --color-max-primary-foreground: var(--max-primary-foreground);
+  --color-max-success: var(--max-success);
+  --radius-bubble: 16px;
+  --radius-card: 8px;
+  --radius-icon: 12px;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 :root {
@@ -78,6 +102,23 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* MAX widget palette — raw values from the Figma "🧠 Application" file.
+     Comment shows the originating Figma variable. */
+  --max-surface: #ffffff; /* Surface/Content/0 */
+  --max-surface-muted: #f8f9fc; /* Surface/Header — user bubble bg */
+  --max-card: #f8f9fc; /* Surface/Content/1 — source card bg */
+  --max-card-border: #e8ecf6; /* Surface/Content/3 — source card border */
+  --max-icon-bg: #f0f2f8; /* Neutral/20 — source icon chip */
+  --max-divider: rgba(0, 0, 0, 0.06); /* header / footer hairline */
+  --max-text-30: #707880; /* text/text-30 — muted/meta */
+  --max-text-60: #4b5259; /* text/text-60 — input + user bubble text */
+  --max-text-80: #343a40; /* text/text-80 — assistant body text */
+  --max-text-100: #23272b; /* text/text-100 — strong/title text */
+  --max-link: #2970ff; /* text/Link */
+  --max-primary: #2970ff; /* Buttons/Primary/Default — send button */
+  --max-primary-foreground: #f1f3f5; /* Buttons/Primary/Foreground */
+  --max-success: #389e0d; /* Buttons/Green/Default — loading dot */
 }
 
 .dark {
