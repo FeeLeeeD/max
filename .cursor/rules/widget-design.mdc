@@ -25,9 +25,13 @@ consistent and themeable as more states land.
   comment (empty/error/refusal states, the sources collapsible, score/preview,
   feedback thumbs behavior, keyboard handling, page-level layout). This flags
   exactly what a designer still needs to sign off on.
-- **No typewriter / streaming in render.** Answers display in full immediately
-  (the typewriter effect is a separate step). Render answers as plain text with
-  preserved line breaks; introducing a markdown renderer is a flagged change.
+- **Typewriter reveal is presentational only (W4).** Only the newest assistant
+  answer types out (`useTypewriter`); older answers render statically and never
+  re-animate, and there is still no real streaming. Respect
+  `prefers-reduced-motion` (disable the reveal, show the full answer), and never
+  expose the per-character text to assistive tech — announce the complete answer
+  once. Answers stay plain text with preserved line breaks; a markdown renderer
+  remains a flagged change.
 
 ## Why
 

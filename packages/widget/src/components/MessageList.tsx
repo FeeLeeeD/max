@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { useChatStore } from "@/store/chatStore";
 import { MessageBubble } from "@/components/MessageBubble";
 import { MessageActions } from "@/components/MessageActions";
@@ -17,13 +17,18 @@ export function MessageList() {
   const lastSources = useChatStore((s) => s.lastSources);
   const lastWasRefused = useChatStore((s) => s.lastWasRefused);
 
-  const bottomRef = useRef<HTMLDivElement>(null);
-
-  // Auto-scroll to the newest message whenever the conversation grows or the
-  // loading indicator toggles.
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length, isLoading]);
+  // Only the newest assistant answer animates, and only one that arrived during
+  // this session (anything present at mount renders statically). When a new
+  // message is appended the previous answer is no longer the last index, so its
+  // `animate` flips to false and it freezes at full text — which also makes a
+  // new send instantly settle an in-progress reveal. No store change needed:
+  // this is derived purely from the messages array in the component layer.
+  const initialCountRef = useRef(messages.length);
+  const lastIndex = messages.length - 1;
+  const animateIndex =
+    messages[lastIndex]?.role === "assistant" && lastIndex >= initialCountRef.current
+      ? lastIndex
+      : -1;
 
   const isEmpty = messages.length === 0 && !isLoading && !error;
 
@@ -54,7 +59,11 @@ export function MessageList() {
           // refusal note and sources, then the feedback thumbs.
           return (
             <div key={i} className="flex w-full flex-col items-start gap-2">
-              <MessageBubble role="assistant" content={message.content} />
+              <MessageBubble
+                role="assistant"
+                content={message.content}
+                animate={i === animateIndex}
+              />
               {isLast && lastWasRefused && <RefusalNote />}
               {isLast && <Sources sources={lastSources} />}
               <MessageActions />
@@ -65,8 +74,6 @@ export function MessageList() {
 
       {isLoading && <LoadingIndicator />}
       {error && <ErrorNotice message={error} />}
-
-      <div ref={bottomRef} />
     </div>
   );
 }
