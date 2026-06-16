@@ -32,8 +32,22 @@ if (!voyageApiKey) {
   );
 }
 
+// Whether the Postgres connection should use TLS. Managed Postgres
+// (Neon/Railway/etc.) requires it; local Docker Postgres does not.
+// Precedence:
+//   1. Explicit DATABASE_SSL ("true"/"false") is the source of truth.
+//   2. If unset, infer from the connection string asking for TLS
+//      (sslmode=require / verify-ca / verify-full).
+// The explicit env var always wins over the inferred value.
+const databaseSslEnv = process.env.DATABASE_SSL;
+const databaseSsl =
+  databaseSslEnv !== undefined
+    ? databaseSslEnv.trim().toLowerCase() === "true"
+    : /[?&]sslmode=(require|verify-ca|verify-full)/i.test(databaseUrl);
+
 export const config = Object.freeze({
   databaseUrl,
+  databaseSsl,
   portkeyApiKey,
   portkeyVirtualKey: process.env.PORTKEY_VIRTUAL_KEY || undefined,
   portkeyConfig: process.env.PORTKEY_CONFIG || undefined,

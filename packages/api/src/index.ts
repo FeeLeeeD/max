@@ -1,7 +1,25 @@
 import { serve } from "@hono/node-server";
 import { closePool } from "@max/sandbox/db";
+import { runMigrations } from "@max/sandbox/migrator";
 import { app } from "./app.js";
 import { apiConfig } from "./config.js";
+
+// Apply pending migrations BEFORE the server starts accepting requests. This is
+// opt-in (RUN_MIGRATIONS_ON_BOOT) so local dev keeps running migrations via the
+// CLI. Fail-fast: a migration error exits non-zero rather than serving traffic
+// against an un-migrated schema — the correct behavior for a deploy.
+if (apiConfig.runMigrationsOnBoot) {
+  try {
+    const { applied, skipped } = await runMigrations();
+    console.log(
+      `Migrations on boot: ${applied.length} applied, ${skipped.length} skipped.`,
+    );
+  } catch (err) {
+    console.error("Migrations on boot failed, refusing to start:", err);
+    await closePool().catch(() => {});
+    process.exit(1);
+  }
+}
 
 const server = serve(
   { fetch: app.fetch, port: apiConfig.port },

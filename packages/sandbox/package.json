@@ -11,6 +11,7 @@
     "./ingest": "./src/ingestDocument.ts",
     "./embedder": "./src/embedder.ts",
     "./config": "./src/config.ts",
+    "./migrator": "./src/migrator.ts",
     "./llm": "./src/llm.ts"
   },
   "scripts": {

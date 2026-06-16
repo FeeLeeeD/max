@@ -19,10 +19,18 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? "*")
 // admin surface is disabled (the middleware returns 503), so we don't throw.
 const adminToken = process.env.ADMIN_TOKEN || undefined;
 
+// Opt-in: apply pending DB migrations before the server starts listening.
+// Default false (local — migrations are run manually via the CLI). Set true in
+// cloud so each deploy migrates the managed DB on boot. See runMigrations().
+const runMigrationsOnBoot =
+  (process.env.RUN_MIGRATIONS_ON_BOOT ?? "false").trim().toLowerCase() ===
+  "true";
+
 export const apiConfig = Object.freeze({
   port,
   allowedOrigins,
   adminToken,
+  runMigrationsOnBoot,
 });
 
 export type ApiConfig = typeof apiConfig;

@@ -1,0 +1,42 @@
+---
+description: Schema migrations go through runMigrations(). Read before adding migrations or touching DB migration/boot code (CLI db:migrate, API startup).
+globs: packages/sandbox/src/migrator.ts,packages/sandbox/src/scripts/migrate.ts,packages/api/src/index.ts,db/migrations/**
+alwaysApply: false
+---
+
+# Migrations go through `runMigrations()`
+
+`packages/sandbox/src/migrator.ts` (`runMigrations()`) is the single source of
+truth for applying schema migrations: ensure the `_migrations` table → read
+applied filenames → apply each pending `.sql` (sorted) in its own
+`BEGIN/COMMIT` transaction → record it. It returns `{ applied, skipped }`.
+
+## Invariant
+
+- Both entry points call `runMigrations()` — never re-implement migration
+  application:
+  - CLI: `packages/sandbox/src/scripts/migrate.ts` (`pnpm --filter @max/sandbox db:migrate`).
+  - API boot: `packages/api/src/index.ts`, gated by `RUN_MIGRATIONS_ON_BOOT`,
+    runs BEFORE the server listens and fails fast (exit non-zero) on error.
+- Exported as `@max/sandbox/migrator` (see `packages/sandbox/package.json`).
+
+## Concurrency
+
+- The run is wrapped in a Postgres **session-level advisory lock** on a
+  dedicated client (`pg_advisory_lock` / `pg_advisory_unlock`, fixed key in
+  `migrator.ts`). This serializes concurrent runners (e.g. multiple API
+  instances booting together); a blocked runner just skips everything once it
+  acquires the lock. Keep the lock around the whole run; keep per-file
+  transactions independent of it.
+
+## Boundaries
+
+- `runMigrations()` is a library function: it does NOT `closePool()` or
+  `process.exit()` — lifecycle is the caller's job. The CLI wrapper closes the
+  pool and exits; the API boot path exits non-zero on failure.
+
+## Authoring migrations
+
+- Forward-only, idempotent, numbered `.sql` files in `db/migrations/`
+  (`001_*.sql`, `002_*.sql`, …). They apply in sorted filename order.
+- Never edit or renumber an already-applied migration — add a new one.
