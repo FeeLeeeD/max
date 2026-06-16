@@ -1,10 +1,2 @@
 packages:
   - "packages/*"
-
-# pnpm 10 blocks lifecycle scripts by default. These deps ship native binaries
-# that are fetched by their install scripts, so they must be allowlisted.
-# - sharp: image-processing native addon, transitive dep of @xenova/transformers
-# - onnxruntime-node: ONNX runtime native addon used by @xenova/transformers
-onlyBuiltDependencies:
-  - sharp
-  - onnxruntime-node

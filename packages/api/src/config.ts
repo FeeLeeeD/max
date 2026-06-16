@@ -8,9 +8,10 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
   throw new Error(`PORT must be a valid port number, got "${process.env.PORT}".`);
 }
 
-// Comma-separated list; '*' means allow any origin (dev default). Consumed by
-// CORS in a later step — read here so config stays the single source of truth.
-const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? "*")
+// Comma-separated CORS allow-list. No default and no '*': an unset/empty value
+// yields an empty array, which the CORS layer treats as "block all cross-origin
+// requests" (see app.ts). Read here so config stays the single source of truth.
+const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? "")
   .split(",")
   .map((o) => o.trim())
   .filter((o) => o.length > 0);

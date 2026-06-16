@@ -1,0 +1,65 @@
+---
+description: Packaging and deploying the @max/api container (Dockerfile, build context, migrations path, CORS, secrets)
+globs: packages/api/Dockerfile,.dockerignore,packages/api/src/index.ts,packages/api/src/app.ts,packages/api/src/config.ts
+alwaysApply: false
+---
+
+# api — deployment & packaging
+
+How `@max/api` is built into a container and run in the cloud (Railway, but the
+image stays portable). Embeddings go to Voyage over HTTP — there is no in-process
+model, so the image carries no model weights or native ML addons.
+
+## Build context is the repo root
+
+- This is a pnpm workspace. The lockfile, `pnpm-workspace.yaml`, and the
+  `@max/sandbox` package live ABOVE `packages/api`, so the Docker build context
+  MUST be the repo root:
+  `docker build -f packages/api/Dockerfile -t max-api .`
+- `pnpm install --frozen-lockfile` validates the lockfile against EVERY workspace
+  importer. Copy ALL `packages/*/package.json` in the build stage (even
+  kb-tool/widget/shared) or the frozen install fails. Keep them out of the
+  runtime image — they're build-stage only (see `.dockerignore`).
+
+## Compiled JS resolution (exports map)
+
+- `@max/sandbox`'s `exports` point at `./src/*.ts` so `tsx` can run sources in
+  dev. Plain `node` CANNOT load `.ts`, so any `node`-run artifact (the image,
+  `pnpm start`) needs those specifiers to resolve to compiled JS.
+- The Dockerfile rewrites the DEPLOYED sandbox `exports` (`./src/X.ts` →
+  `./dist/X.js`) — image-only. Do not "fix" this by pointing the repo exports at
+  `dist`; that breaks `tsx` dev. If you make it permanent, use conditional
+  exports so dev keeps resolving to source.
+- Each shippable package sets `"files": ["dist"]` so `pnpm deploy` ships compiled
+  output. Without it, deploy honors `.gitignore` (which ignores `dist/`) and
+  ships nothing runnable.
+
+## Migrations path in-container (common breakage)
+
+- The migrator reads `${config.projectRoot}/db/migrations/*.sql` at boot
+  (`RUN_MIGRATIONS_ON_BOOT=true`). `config.projectRoot` is
+  `resolve(dir(import.meta.url), "../../..")` from the COMPILED sandbox config.
+- GOTCHA: `pnpm deploy` puts the real sandbox in pnpm's virtual store
+  (`node_modules/.pnpm/@max+sandbox@<hash>/node_modules/@max/sandbox`), and Node
+  resolves the symlink to that real path. So `projectRoot` lands inside that
+  hashed `.pnpm` dir, NOT `<app>/node_modules`. The hash is not stable, so the
+  Dockerfile computes the exact path the app will use (realpath of the sandbox
+  `dist` + `../../..`) and copies the `.sql` there — never hardcode the `.pnpm`
+  path. If you change the runtime layout, re-derive this the same way.
+
+## Runtime invariants
+
+- Bind `0.0.0.0` (set explicitly in `index.ts`). A localhost/127.0.0.1 bind is
+  unreachable inside a container and breaks health checks/routing.
+- Port comes from `PORT` (default 8000). `HEALTHCHECK` hits `GET /health`.
+- Secrets are runtime env only — never baked into the image or committed:
+  `DATABASE_URL`, `VOYAGE_API_KEY`, `PORTKEY_API_KEY` (+ optional Portkey keys),
+  `ADMIN_TOKEN`, `ALLOWED_ORIGINS`, `DATABASE_SSL`, `RUN_MIGRATIONS_ON_BOOT`.
+- The image must NOT contain: TS sources, dev deps, `.env`, other workspace
+  packages, sandbox CLI scripts, sample data, or model weights.
+
+## CORS
+
+- `ALLOWED_ORIGINS` is a comma-separated allow-list parsed in `config.ts`. An
+  empty/unset value blocks ALL cross-origin requests (no allow-all fallback);
+  `app.ts` logs a startup WARNING in that case. Set it to the widget origin(s).

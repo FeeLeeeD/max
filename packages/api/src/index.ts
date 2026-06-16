@@ -21,10 +21,14 @@ if (apiConfig.runMigrationsOnBoot) {
   }
 }
 
+// Bind 0.0.0.0 explicitly. @hono/node-server already listens on all interfaces
+// when hostname is omitted, but being explicit guarantees reachability inside a
+// container (a localhost/127.0.0.1 bind would only accept connections from
+// within the container and break Railway/Docker health checks and routing).
 const server = serve(
-  { fetch: app.fetch, port: apiConfig.port },
+  { fetch: app.fetch, port: apiConfig.port, hostname: "0.0.0.0" },
   (info) => {
-    console.log(`Server listening on http://localhost:${info.port}`);
+    console.log(`Server listening on http://${info.address}:${info.port}`);
   },
 );
 

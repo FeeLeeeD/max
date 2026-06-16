@@ -1,0 +1,48 @@
+# Build context = repo root. Keep only what's needed to install + build + run
+# the @max/api image (api, sandbox, db/migrations, root manifests, lockfile).
+
+# Dependencies + build outputs are recreated inside the image
+**/node_modules
+**/dist
+**/build
+**/out
+**/.output
+**/*.tsbuildinfo
+.pnpm-store
+
+# VCS + secrets (never bake credentials into the image)
+.git
+.gitignore
+**/.env
+**/.env.*
+
+# Packages not needed to build or run the API. Their package.json files are kept
+# (and only those) because `pnpm install --frozen-lockfile` validates the lockfile
+# against EVERY workspace importer; the manifests live only in the build stage and
+# never reach the runtime image. All their source is excluded.
+packages/kb-tool/*
+!packages/kb-tool/package.json
+packages/widget/*
+!packages/widget/package.json
+packages/shared/*
+!packages/shared/package.json
+
+# Sandbox CLI/test scripts and sample data are not used by the API at runtime.
+# (Migrations under db/migrations are NOT ignored — the image needs them.)
+packages/sandbox/src/scripts
+data
+
+# Tooling / docs / editor + OS junk
+.cursor
+.vscode
+.idea
+**/*.md
+docker-compose.yml
+**/.DS_Store
+Thumbs.db
+**/*.swp
+**/*.swo
+**/*.log
+.cache
+.turbo
+.eslintcache
