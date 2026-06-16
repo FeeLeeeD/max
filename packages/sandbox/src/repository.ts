@@ -139,6 +139,20 @@ export async function countChunksForDocument(
   return Number(rows[0]?.count ?? 0);
 }
 
+// Chunks whose embedding is NULL "need embedding". After an embedding-backend
+// migration (e.g. dimension change) existing chunks are cleared to NULL, so the
+// ingest idempotency check must treat >0 here as "must re-index" even when the
+// document's content_hash is unchanged.
+export async function countChunksMissingEmbedding(
+  documentId: number,
+): Promise<number> {
+  const rows = await query<{ count: string }>(
+    "SELECT COUNT(*)::text AS count FROM chunks WHERE document_id = $1 AND embedding IS NULL",
+    [documentId],
+  );
+  return Number(rows[0]?.count ?? 0);
+}
+
 export interface DocumentSummary {
   id: number;
   source: string;

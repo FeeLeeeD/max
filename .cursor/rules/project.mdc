@@ -8,7 +8,7 @@ alwaysApply: true
 
 - TypeScript strict mode, ESM modules (`import`/`export`, not `require`)
 - Node 20+, pnpm workspaces
-- Hono for HTTP, pg for Postgres, @xenova/transformers for embeddings
+- Hono for HTTP, pg for Postgres, Voyage AI REST API for embeddings
 - No Prisma/Drizzle for now — raw SQL via `pg`
 - No LangChain/LlamaIndex — write RAG pipeline directly
 

@@ -7,6 +7,7 @@ import {
   deleteChunksForDocument,
   insertChunks,
   countChunksForDocument,
+  countChunksMissingEmbedding,
 } from "./repository.js";
 
 // The single-document indexing pipeline: hash -> idempotency check -> chunk ->
@@ -42,7 +43,12 @@ export async function ingestDocument(
 
   if (existing && existing.contentHash === contentHash) {
     const chunkCount = await countChunksForDocument(existing.id);
-    if (chunkCount > 0) {
+    // Only skip when the document is fully indexed: unchanged content AND every
+    // chunk already has an embedding. After an embedding-backend migration the
+    // chunks survive but their embeddings are NULL, so we must NOT skip — we
+    // re-chunk and re-embed below to backfill them.
+    const missingEmbeddings = await countChunksMissingEmbedding(existing.id);
+    if (chunkCount > 0 && missingEmbeddings === 0) {
       return { status: "skipped", reason: "unchanged", documentId: existing.id };
     }
   }
@@ -62,8 +68,12 @@ export async function ingestDocument(
 
   await deleteChunksForDocument(doc.id);
 
-  // Embed the breadcrumb-augmented text, but store the clean content.
-  const embeddings = await embedBatch(chunks.map((c) => c.embeddingText));
+  // Embed the breadcrumb-augmented text, but store the clean content. These are
+  // documents being indexed, so use the "document" input type.
+  const embeddings = await embedBatch(
+    chunks.map((c) => c.embeddingText),
+    "document",
+  );
 
   const insertRows = chunks.map((chunk, i) => {
     const metadata: Record<string, unknown> = {

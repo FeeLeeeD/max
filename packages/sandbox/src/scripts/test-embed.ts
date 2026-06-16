@@ -21,7 +21,10 @@ async function main(): Promise<void> {
   const keys = Object.keys(sentences) as Key[];
   const texts = keys.map((k) => sentences[k]);
 
-  const vectors = await embedBatch(texts);
+  // Pure similarity sanity check (no indexing/retrieval split here), so embed
+  // everything with the same input type; "query" is an arbitrary-but-consistent
+  // choice for this test.
+  const vectors = await embedBatch(texts, "query");
   const byKey = Object.fromEntries(
     keys.map((k, i) => [k, vectors[i]!]),
   ) as Record<Key, number[]>;

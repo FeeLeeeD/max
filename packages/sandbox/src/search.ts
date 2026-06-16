@@ -52,7 +52,7 @@ export async function search(
     throw new Error(`search: topK must be a positive integer, got ${topK}`);
   }
 
-  const embedding = await embed(trimmed);
+  const embedding = await embed(trimmed, "query");
   const vectorLiteral = formatVector(embedding);
 
   // ORDER BY on the raw distance expression (not on the computed `score`

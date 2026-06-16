@@ -1,0 +1,45 @@
+---
+description: Embedding backend invariants (Voyage AI, 1024 dims, query-vs-document input_type). Read before changing embedding, search, or ingest code.
+globs: packages/sandbox/src/embedder.ts,packages/sandbox/src/ingestDocument.ts,packages/sandbox/src/search.ts,packages/sandbox/src/rag.ts
+alwaysApply: false
+---
+
+# Embeddings go through `embedder.ts` (Voyage AI)
+
+`packages/sandbox/src/embedder.ts` is the single source of truth for turning
+text into vectors. It calls the Voyage AI REST API directly (no Portkey, no
+local model).
+
+## Invariants
+
+- **Model / dimension:** `voyage-3.5-lite`, `EMBEDDING_DIMENSION = 1024`. These
+  are exported constants — never hardcode the number elsewhere.
+- **`input_type` is required and matters for retrieval quality:**
+  - Indexing / documents (`ingestDocument.ts`) → `embed*(..., "document")`.
+  - Search / user queries (`search.ts`, `rag.ts`) → `embed*(..., "query")`.
+  - Mixing these up silently degrades retrieval; it raises no error.
+- **Vectors are normalized** by Voyage, so downstream cosine similarity is a
+  plain dot product (`chunks.embedding vector_cosine_ops`, and
+  `cosineSimilarity` in `embedder.ts`).
+- **Batching:** `embedBatch` chunks requests at `MAX_BATCH_SIZE` (Voyage caps
+  one request at 1,000 inputs / a per-model token ceiling). Order is preserved
+  by sorting the response `data` by `index`.
+
+## Changing the model or dimension
+
+Changing `EMBEDDING_MODEL` / `EMBEDDING_DIMENSION` is a breaking change:
+
+1. Add a forward DB migration that alters `chunks.embedding` to the new
+   `vector(N)`, drops + recreates the HNSW cosine index, and clears old vectors
+   to NULL (old-dimensional vectors are incompatible and must be regenerated).
+   See `db/migrations/004_voyage_1024_dims.sql` for the pattern.
+2. Re-index everything: `pnpm --filter @max/sandbox db:migrate` then
+   `pnpm --filter @max/sandbox ingest`. Ingest idempotency does NOT skip
+   documents whose chunks have NULL embeddings (see
+   `countChunksMissingEmbedding` in `repository.ts`), so a normal ingest run
+   re-embeds the cleared chunks.
+
+## Config
+
+- `VOYAGE_API_KEY` is required (validated in `config.ts`, listed in
+  `.env.example`). The client sends it as `Authorization: Bearer <key>`.

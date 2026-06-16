@@ -24,11 +24,20 @@ if (!portkeyApiKey) {
   );
 }
 
+const voyageApiKey = process.env.VOYAGE_API_KEY;
+if (!voyageApiKey) {
+  throw new Error(
+    "VOYAGE_API_KEY is not set. Copy .env.example to .env at the project root and set VOYAGE_API_KEY. " +
+      "Get your key at https://dashboard.voyageai.com",
+  );
+}
+
 export const config = Object.freeze({
   databaseUrl,
   portkeyApiKey,
   portkeyVirtualKey: process.env.PORTKEY_VIRTUAL_KEY || undefined,
   portkeyConfig: process.env.PORTKEY_CONFIG || undefined,
+  voyageApiKey,
   projectRoot,
 });
 
