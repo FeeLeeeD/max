@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { ThumbsDown, ThumbsUp } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Tooltip } from "radix-ui";
 
 // The Figma "Thumbs" block sits under each assistant answer. The icons and
 // layout come from Figma, but the behavior does NOT.

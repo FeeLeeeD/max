@@ -16,7 +16,7 @@ if (apiConfig.runMigrationsOnBoot) {
     );
   } catch (err) {
     console.error("Migrations on boot failed, refusing to start:", err);
-    await closePool().catch(() => {});
+    await closePool().catch(() => { });
     process.exit(1);
   }
 }
