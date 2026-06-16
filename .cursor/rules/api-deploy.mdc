@@ -1,6 +1,6 @@
 ---
 description: Packaging and deploying the @max/api container (Dockerfile, build context, migrations path, CORS, secrets)
-globs: packages/api/Dockerfile,.dockerignore,packages/api/src/index.ts,packages/api/src/app.ts,packages/api/src/config.ts
+globs: packages/api/Dockerfile,.dockerignore,packages/api/src/index.ts,packages/api/src/app.ts,packages/api/src/config.ts,packages/api/scripts/bulkUpload.ts,packages/api/src/routes/admin.ts
 alwaysApply: false
 ---
 
@@ -63,3 +63,23 @@ model, so the image carries no model weights or native ML addons.
 - `ALLOWED_ORIGINS` is a comma-separated allow-list parsed in `config.ts`. An
   empty/unset value blocks ALL cross-origin requests (no allow-all fallback);
   `app.ts` logs a startup WARNING in that case. Set it to the widget origin(s).
+
+## Populating the knowledge base (`scripts/bulkUpload.ts`)
+
+- After a deploy the cloud DB is empty. `packages/api/scripts/bulkUpload.ts`
+  (`pnpm --filter @max/api bulk-upload`) is the operator tool that fills it: it
+  reads a folder of `.md` files and POSTs each, SEQUENTIALLY, to the deployed
+  `POST /admin/documents`. It is a pure HTTP client — it does NOT import
+  chunking/embedding logic (that runs server-side via `ingestDocument`).
+- It MIRRORS the admin-documents contract in `packages/api/src/routes/admin.ts`
+  (request body `{ source, content }`, Bearer auth, and the
+  `indexed`/`skipped`/`empty`/error responses). If you change that route's
+  request/response shape, status codes, or auth, UPDATE the script to match
+  (it imports `IngestOutcome` type-only from `@max/sandbox/ingest` to stay
+  aligned with the success shape).
+- It lives in `scripts/` (outside `src/`) on purpose: it's run with `tsx`, is
+  excluded from `tsc` build/typecheck, and must never ship in the image (see the
+  runtime-invariants list — no CLI scripts in the image).
+- `source` is the bare filename, matching the sandbox `ingest` CLI, so the
+  server-side content-hash idempotency aligns: re-running is safe and unchanged
+  docs return `skipped`. The script exits non-zero if any file errored.
