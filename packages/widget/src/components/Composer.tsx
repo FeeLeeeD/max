@@ -47,7 +47,7 @@ export function Composer({ onSend, isLoading }: ComposerProps) {
         src={maxAvatar}
         alt=""
         aria-hidden="true"
-        className="h-[60px] w-[60px] shrink-0 object-contain"
+        className="h-[60px] w-[50px] shrink-0 object-contain"
       />
       <div className="flex flex-1 items-center gap-3 py-3">
         <label htmlFor="max-composer" className="sr-only">

@@ -26,7 +26,7 @@ export function ChatHeader({ onClose }: ChatHeaderProps) {
         <p className="min-w-0 flex-1 truncate text-lg font-semibold leading-[1.4] tracking-[-0.01em] text-max-text-60">
           Max <span className="font-mono font-normal">[testing]</span>
         </p>
-        <span className="text-xs text-max-text-30">v0.0.1</span>
+        <span className="text-xs text-max-text-30">v0.0.2</span>
       </div>
 
       {/* DERIVED: not in Figma — review. No widget host to close in this page,
