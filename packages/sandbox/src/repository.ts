@@ -235,3 +235,98 @@ export async function deleteAllDocuments(): Promise<{
   const result = await pool.query("DELETE FROM documents");
   return { documentsDeleted: result.rowCount ?? 0 };
 }
+
+export interface QueryLogRow {
+  id: number;
+  question: string;
+  answer: string;
+  wasRefused: boolean;
+  retrievalScoreTop: number | null;
+  sources: unknown[];
+  latencyMs: number | null;
+  rating: "up" | "down" | null;
+  createdAt: Date;
+}
+
+interface RawQueryLogRow {
+  id: number;
+  question: string;
+  answer: string;
+  was_refused: boolean;
+  retrieval_score_top: number | null;
+  sources: unknown[];
+  latency_ms: number | null;
+  rating: "up" | "down" | null;
+  created_at: Date;
+}
+
+function mapQueryLog(row: RawQueryLogRow): QueryLogRow {
+  return {
+    id: row.id,
+    question: row.question,
+    answer: row.answer,
+    wasRefused: row.was_refused,
+    retrievalScoreTop: row.retrieval_score_top,
+    sources: row.sources,
+    latencyMs: row.latency_ms,
+    rating: row.rating,
+    createdAt: row.created_at,
+  };
+}
+
+const FEEDBACK_RATINGS = ["up", "down"] as const;
+
+export async function insertQueryLog(input: {
+  question: string;
+  answer: string;
+  wasRefused: boolean;
+  retrievalScoreTop: number | null;
+  sources: unknown[];
+  latencyMs: number | null;
+}): Promise<{ id: number }> {
+  const rows = await query<{ id: number }>(
+    `INSERT INTO query_logs
+       (question, answer, was_refused, retrieval_score_top, sources, latency_ms)
+     VALUES ($1, $2, $3, $4, $5::jsonb, $6)
+     RETURNING id`,
+    [
+      input.question,
+      input.answer,
+      input.wasRefused,
+      input.retrievalScoreTop,
+      JSON.stringify(input.sources),
+      input.latencyMs,
+    ],
+  );
+  return { id: rows[0]!.id };
+}
+
+export async function setFeedback(
+  logId: number,
+  rating: "up" | "down",
+): Promise<{ updated: boolean }> {
+  if (!FEEDBACK_RATINGS.includes(rating)) {
+    throw new Error(
+      `Invalid feedback rating "${rating}"; expected one of: ${FEEDBACK_RATINGS.join(", ")}.`,
+    );
+  }
+  const rows = await query<{ id: number }>(
+    "UPDATE query_logs SET rating = $2 WHERE id = $1 RETURNING id",
+    [logId, rating],
+  );
+  return { updated: Boolean(rows[0]) };
+}
+
+export async function listRecentQueryLogs(
+  limit: number,
+): Promise<QueryLogRow[]> {
+  const rows = await query<RawQueryLogRow>(
+    `SELECT id, question, answer, was_refused, retrieval_score_top,
+            sources, latency_ms, rating, created_at
+       FROM query_logs
+      ORDER BY created_at DESC
+      LIMIT $1`,
+    [limit],
+  );
+  return rows.map(mapQueryLog);
+}
