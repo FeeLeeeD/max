@@ -52,6 +52,7 @@ src/
 
 ## Current behavior to preserve
 
+- `/chat` response shape: `{ answer, sources, wasRefused, retrievalScoreTop, logId, retrieval, minScoreUsed }`. All fields are additive over time — `logId` (best-effort observability) and the debug pair `retrieval` / `minScoreUsed` (D1) were added without changing prior fields. `retrieval` is the full top-K retrieval set (`RetrievalDebugItem[]` from `@max/sandbox/rag`: source/title/chunkIndex/score/headingPath?/contentPreview/passedThreshold) and is **always populated, including on refusal** — it exists so the eval harness can see found chunks + scores when MAX refuses, to calibrate `minScore`. `minScoreUsed` is the threshold those `passedThreshold` flags were computed against. These are distinct from `sources` (chunks the answer actually used), which stays `[]` on refusal — don't conflate them. Widget consumption of the debug fields is a separate step (D2).
 - `/chat` is **single-turn**: it picks the last `user` message and ignores history. Don't quietly switch to multi-turn without flagging it.
 - CORS is intentionally permissive (`cors()`) for dev; tightening it (using `apiConfig.allowedOrigins`) is a planned step — note it, don't silently rewire.
 

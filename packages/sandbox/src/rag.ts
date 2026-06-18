@@ -9,6 +9,20 @@ export interface AnsweredSource {
   contentPreview: string;
 }
 
+// Debug-only view of EVERY retrieved chunk (full top-K, before the refusal
+// cut), surfaced so the test harness can inspect scores — especially on
+// refusal — to calibrate `minScore`. Distinct from `AnsweredSource`, which
+// only ever lists chunks the answer actually used.
+export interface RetrievalDebugItem {
+  source: string;
+  title: string | null;
+  chunkIndex: number;
+  score: number;
+  headingPath?: string[];
+  contentPreview: string;
+  passedThreshold: boolean;
+}
+
 export interface AnswerResult {
   question: string;
   answer: string;
@@ -16,6 +30,12 @@ export interface AnswerResult {
   retrievalScoreTop: number;
   chunksUsed: number;
   wasRefused: boolean;
+  // Always populated (on answer AND refusal): the full retrieval set with
+  // scores and per-item threshold checks, for evaluation/debugging.
+  retrieval: RetrievalDebugItem[];
+  // The `minScore` actually applied by this call, so the UI can show the
+  // threshold the `passedThreshold` flags were computed against.
+  minScoreUsed: number;
 }
 
 export interface AskOptions {
@@ -143,16 +163,45 @@ function buildUserPrompt(
   );
 }
 
-function buildSource(r: SearchResult): AnsweredSource {
-  const preview =
-    r.content.length <= 200 ? r.content : r.content.slice(0, 200).trimEnd();
+function buildPreview(content: string): string {
+  return content.length <= 200 ? content : content.slice(0, 200).trimEnd();
+}
 
+function buildSource(r: SearchResult): AnsweredSource {
   return {
     source: r.source,
     chunkIndex: r.chunkIndex,
     title: r.title,
     score: r.score,
-    contentPreview: preview,
+    contentPreview: buildPreview(r.content),
+  };
+}
+
+// `metadata` is an untyped `Record<string, unknown>`; only surface
+// `headingPath` when it's actually a string array (set during ingest).
+function extractHeadingPath(
+  metadata: Record<string, unknown>,
+): string[] | undefined {
+  const value = metadata.headingPath;
+  if (Array.isArray(value) && value.every((v) => typeof v === "string")) {
+    return value;
+  }
+  return undefined;
+}
+
+function buildRetrievalItem(
+  r: SearchResult,
+  minScore: number,
+): RetrievalDebugItem {
+  const headingPath = extractHeadingPath(r.metadata);
+  return {
+    source: r.source,
+    title: r.title,
+    chunkIndex: r.chunkIndex,
+    score: r.score,
+    ...(headingPath ? { headingPath } : {}),
+    contentPreview: buildPreview(r.content),
+    passedThreshold: r.score >= minScore,
   };
 }
 
@@ -170,6 +219,8 @@ export async function ask(
 
   const results = await search(trimmed, { topK });
 
+  const retrieval = results.map((r) => buildRetrievalItem(r, minScore));
+
   if (results.length === 0 || results[0].score < minScore) {
     return {
       question: trimmed,
@@ -178,6 +229,8 @@ export async function ask(
       retrievalScoreTop: results[0]?.score ?? 0,
       chunksUsed: 0,
       wasRefused: true,
+      retrieval,
+      minScoreUsed: minScore,
     };
   }
 
@@ -195,5 +248,7 @@ export async function ask(
     retrievalScoreTop: results[0].score,
     chunksUsed: results.length,
     wasRefused: false,
+    retrieval,
+    minScoreUsed: minScore,
   };
 }

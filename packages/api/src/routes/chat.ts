@@ -75,12 +75,17 @@ chatRoute.post("/", async (c) => {
 
     // ADDITIVE contract change: `logId` is new; prior fields are unchanged.
     // The widget's API client type must be updated to match (handled in L3).
+    // ADDITIVE (D1): `retrieval` + `minScoreUsed` are debug fields for the
+    // eval harness — `retrieval` is ALWAYS populated (incl. on refusal) so we
+    // can see found chunks + scores when MAX refuses. Widget wiring is D2.
     return c.json({
       answer: result.answer,
       sources,
       wasRefused,
       retrievalScoreTop,
       logId,
+      retrieval: result.retrieval,
+      minScoreUsed: result.minScoreUsed,
     });
   } catch (err) {
     console.error("Chat error:", err);
