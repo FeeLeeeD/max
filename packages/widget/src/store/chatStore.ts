@@ -91,11 +91,15 @@ export const useChatStore = create<ChatState>()((set, get) => ({
     // server's log write failed and returned a null logId).
     if (lastLogId === null) return;
 
-    // Optimistically reflect the selection; revert if the request fails.
-    set({ lastFeedback: rating, error: null });
+    // Toggle: clicking the already-active rating clears it (undo); clicking the
+    // other rating switches. The route/repo just persist whatever we send.
+    const next = lastFeedback === rating ? null : rating;
+
+    // Optimistically reflect the selection (may be null); revert if it fails.
+    set({ lastFeedback: next, error: null });
 
     try {
-      await sendFeedback(lastLogId, rating);
+      await sendFeedback(lastLogId, next);
     } catch (err) {
       const message =
         err instanceof ChatApiError || err instanceof Error

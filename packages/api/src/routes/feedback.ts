@@ -6,7 +6,9 @@ export const feedbackRoute = new Hono();
 
 const FeedbackRequestSchema = z.object({
   logId: z.number().int().positive(),
-  rating: z.enum(["up", "down"]),
+  // null clears the rating (undo). The route stays a dumb writer — toggle
+  // semantics live in the widget store, not here.
+  rating: z.enum(["up", "down"]).nullable(),
 });
 
 feedbackRoute.post("/", async (c) => {

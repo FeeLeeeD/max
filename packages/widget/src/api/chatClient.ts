@@ -94,11 +94,12 @@ interface SendFeedbackOptions {
   signal?: AbortSignal;
 }
 
-// Records a thumbs up/down against a logged query. Mirrors sendChat's fetch and
-// error conventions; returns nothing on success (server replies { status }).
+// Records a thumbs up/down against a logged query (null clears it — undo).
+// Mirrors sendChat's fetch and error conventions; returns nothing on success
+// (server replies { status }).
 export async function sendFeedback(
   logId: number,
-  rating: "up" | "down",
+  rating: "up" | "down" | null,
   opts: SendFeedbackOptions = {},
 ): Promise<void> {
   const { signal } = opts;

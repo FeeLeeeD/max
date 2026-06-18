@@ -303,11 +303,13 @@ export async function insertQueryLog(input: {
 
 export async function setFeedback(
   logId: number,
-  rating: "up" | "down",
+  // null clears the rating back to NULL (undo). The DB CHECK already permits
+  // NULL/'up'/'down', so no migration is needed for the null case.
+  rating: "up" | "down" | null,
 ): Promise<{ updated: boolean }> {
-  if (!FEEDBACK_RATINGS.includes(rating)) {
+  if (rating !== null && !FEEDBACK_RATINGS.includes(rating)) {
     throw new Error(
-      `Invalid feedback rating "${rating}"; expected one of: ${FEEDBACK_RATINGS.join(", ")}.`,
+      `Invalid feedback rating "${rating}"; expected one of: ${FEEDBACK_RATINGS.join(", ")}, or null.`,
     );
   }
   const rows = await query<{ id: number }>(

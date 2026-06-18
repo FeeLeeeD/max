@@ -25,9 +25,16 @@ the real UI lands in W3/W4.
     `logId: number | null` (best-effort observability id). Note the response has
     no `threadTitle` / `subject` / `dateRange` fields — those were removed.
   - `/feedback` (`sendFeedback(logId, rating)`) ↔
-    `packages/api/src/routes/feedback.ts`. Body is `{ logId, rating: "up" | "down" }`;
+    `packages/api/src/routes/feedback.ts`. Body is
+    `{ logId, rating: "up" | "down" | null }` (`null` clears the rating — undo);
     success is `{ status: "ok" }`, unknown `logId` is `404`. The store retains
     the latest answer's `logId` (`lastLogId`) and attaches feedback to it.
+- **Feedback toggle logic lives in the store, not the route/repo.**
+  `submitFeedback("up" | "down")` derives the next value (re-clicking the active
+  rating → `null` undo; clicking the other → switch) and sends it. The route and
+  `setFeedback` are dumb writers that persist whatever value they're given
+  (including `null`). Callers (L4 buttons) just call `submitFeedback("up")` /
+  `submitFeedback("down")`.
 - **The backend is single-turn:** `sendChat` sends only the last user message,
   not history. Don't quietly switch to multi-turn here without also changing
   the API.
