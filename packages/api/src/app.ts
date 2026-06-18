@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { apiConfig } from "./config.js";
 import { chatRoute } from "./routes/chat.js";
+import { feedbackRoute } from "./routes/feedback.js";
 import { healthRoute } from "./routes/health.js";
 import { adminRoute } from "./routes/admin.js";
 
@@ -26,8 +27,9 @@ app.use(
   "*",
   cors({
     origin: apiConfig.allowedOrigins,
-    // Methods actually used: GET (/health, /admin/*), POST (/chat, /admin/documents),
-    // DELETE (/admin/documents/:source, /admin/all), plus OPTIONS preflight.
+    // Methods actually used: GET (/health, /admin/*), POST (/chat, /feedback,
+    // /admin/documents), DELETE (/admin/documents/:source, /admin/all), plus
+    // OPTIONS preflight.
     allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
     // Headers clients send: Content-Type (JSON bodies), Authorization (admin
     // bearer token), X-Confirm (DELETE /admin/all guard).
@@ -37,6 +39,7 @@ app.use(
 
 app.route("/health", healthRoute);
 app.route("/chat", chatRoute);
+app.route("/feedback", feedbackRoute);
 app.route("/admin", adminRoute);
 
 app.notFound((c) => c.json({ error: "Not found" }, 404));

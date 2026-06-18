@@ -15,13 +15,19 @@ the real UI lands in W3/W4.
   `axios`, or `XMLHttpRequest` in components, hooks, or anywhere else.
 - **Components read and write chat state via the Zustand store**
   (`src/store/chatStore.ts`) — never call `chatClient` directly from a
-  component. Components dispatch actions (`sendMessage`, `reset`) and read with
-  selectors (`useChatStore((s) => s.messages)`).
-- **The `/chat` contract types live in `chatClient.ts`** (`ChatMessage`,
-  `ChatSource`, `ChatResponse`) and MUST match
-  `packages/api/src/routes/chat.ts` exactly. Update both together. Note the
-  response has no `threadTitle` / `subject` / `dateRange` fields — those were
-  removed.
+  component. Components dispatch actions (`sendMessage`, `submitFeedback`,
+  `reset`) and read with selectors (`useChatStore((s) => s.messages)`). Feedback
+  thumbs (L4) MUST go through `submitFeedback`, not a raw `sendFeedback` call.
+- **The backend contract types live in `chatClient.ts`** and MUST match the API
+  routes exactly — update both together:
+  - `/chat` (`ChatMessage`, `ChatSource`, `ChatResponse`) ↔
+    `packages/api/src/routes/chat.ts`. `ChatResponse` includes
+    `logId: number | null` (best-effort observability id). Note the response has
+    no `threadTitle` / `subject` / `dateRange` fields — those were removed.
+  - `/feedback` (`sendFeedback(logId, rating)`) ↔
+    `packages/api/src/routes/feedback.ts`. Body is `{ logId, rating: "up" | "down" }`;
+    success is `{ status: "ok" }`, unknown `logId` is `404`. The store retains
+    the latest answer's `logId` (`lastLogId`) and attaches feedback to it.
 - **The backend is single-turn:** `sendChat` sends only the last user message,
   not history. Don't quietly switch to multi-turn here without also changing
   the API.
