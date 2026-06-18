@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { ask } from "@max/sandbox/rag";
+import { insertQueryLog } from "@max/sandbox/repository";
 
 export const chatRoute = new Hono();
 
@@ -41,18 +42,45 @@ chatRoute.post("/", async (c) => {
   }
 
   try {
+    const startedAt = Date.now();
     const result = await ask(lastUser.content, { topK, minScore });
 
+    const sources = result.sources.map((s) => ({
+      source: s.source,
+      title: s.title,
+      score: s.score,
+      preview: s.contentPreview,
+    }));
+    const wasRefused = result.wasRefused;
+    const retrievalScoreTop = result.retrievalScoreTop ?? null;
+    const latencyMs = Date.now() - startedAt;
+
+    // Best-effort observability: persist a log row so the widget can attach
+    // feedback later (logId). A logging failure must NEVER break the answer —
+    // we swallow it, record logId as null, and still return the response.
+    let logId: number | null = null;
+    try {
+      const log = await insertQueryLog({
+        question: lastUser.content,
+        answer: result.answer,
+        wasRefused,
+        retrievalScoreTop,
+        sources,
+        latencyMs,
+      });
+      logId = log.id;
+    } catch (logErr) {
+      console.error("query log failed", logErr);
+    }
+
+    // ADDITIVE contract change: `logId` is new; prior fields are unchanged.
+    // The widget's API client type must be updated to match (handled in L3).
     return c.json({
       answer: result.answer,
-      sources: result.sources.map((s) => ({
-        source: s.source,
-        title: s.title,
-        score: s.score,
-        preview: s.contentPreview,
-      })),
-      wasRefused: result.wasRefused,
-      retrievalScoreTop: result.retrievalScoreTop,
+      sources,
+      wasRefused,
+      retrievalScoreTop,
+      logId,
     });
   } catch (err) {
     console.error("Chat error:", err);

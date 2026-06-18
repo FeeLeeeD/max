@@ -1,0 +1,40 @@
+---
+description: Query logging / feedback is best-effort and must never break the request path
+globs: packages/api/src/routes/chat.ts,packages/api/src/routes/feedback.ts,packages/sandbox/src/repository.ts
+alwaysApply: false
+---
+
+# observability — logging is best-effort, never load-bearing
+
+MAX records each answered query in `query_logs` (and later attaches thumbs
+up/down feedback) so we can measure refusals, retrieval scores, and latency.
+This telemetry is auxiliary: the user-facing answer is the contract, the log row
+is not.
+
+## Invariants
+
+- **Log writes never break the response.** Any call to a logging repository
+  function (`insertQueryLog`, and future feedback writes) on the `/chat` success
+  path MUST be wrapped in its own `try/catch`. On failure: `console.error` the
+  error server-side and continue — never rethrow, never turn a successful answer
+  into a 5xx.
+- **`logId` is best-effort.** The `/chat` response includes `logId: number | null`.
+  It is the inserted row id on success and `null` when the log write failed. The
+  answer is returned either way.
+- **Only successful answers are logged here.** The log write sits AFTER the
+  answer is built, on the success path. Don't add error-path logging into this
+  flow.
+- **What's logged matches what's returned.** `question` / `answer` / `sources` /
+  `wasRefused` / `retrievalScoreTop` passed to `insertQueryLog` are the exact
+  values returned to the user, so the log reflects what the user actually got.
+- **Repository logging functions stay throwing + pure.** `insertQueryLog` /
+  feedback writers in `repository.ts` do raw SQL and let errors bubble (matching
+  the rest of the data layer). The best-effort swallowing happens at the route
+  boundary, NOT inside the repository.
+
+## Why
+
+Telemetry that can take down the primary request path is worse than no
+telemetry. Isolating the swallow at the route (while keeping the repository
+honest about failures) means a flaky DB write degrades observability gracefully
+instead of failing users' questions.
