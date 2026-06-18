@@ -1,5 +1,6 @@
 import { search, type SearchResult } from "./search.js";
 import { generate } from "./llm.js";
+import { config } from "./config.js";
 
 export interface AnsweredSource {
   source: string;
@@ -215,7 +216,9 @@ export async function ask(
   }
 
   const topK = options?.topK ?? 5;
-  const minScore = options?.minScore ?? 0.55;
+  // Precedence: explicit per-call override → configured threshold → default.
+  // The 0.55 default now lives only in config (REFUSAL_MIN_SCORE).
+  const minScore = options?.minScore ?? config.refusalMinScore;
 
   const results = await search(trimmed, { topK });
 

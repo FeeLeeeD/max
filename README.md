@@ -226,6 +226,7 @@ Environment variables (see `.env.example`):
 | `PORTKEY_API_KEY`   | —                                         | Portkey API key (required for `ask`)   |
 | `PORTKEY_VIRTUAL_KEY` | —                                       | Portkey virtual key (optional)         |
 | `PORTKEY_CONFIG`    | —                                         | Portkey config ID (optional)           |
+| `REFUSAL_MIN_SCORE` | `0.55`                                    | Refusal threshold — min top score (cosine, [0,1]) to answer. Optional; tune per embedding model |
 
 Chunker defaults (in `src/chunker.ts`):
 

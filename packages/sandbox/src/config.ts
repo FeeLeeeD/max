@@ -32,6 +32,27 @@ if (!voyageApiKey) {
   );
 }
 
+// Refusal threshold: the minimum top retrieval (cosine-similarity) score
+// required for `ask()` to answer rather than refuse. Default 0.55; valid range
+// is [0, 1] (our embeddings are normalized, so scores live in [0,1]). Tune it
+// per embedding model in the Railway dashboard via REFUSAL_MIN_SCORE — the
+// optimal cut differs across models. Unset → 0.55. If set but not a finite
+// number in [0,1], fail fast at startup rather than silently changing refusal
+// behavior (consistent with the other config validation above).
+const refusalMinScoreEnv = process.env.REFUSAL_MIN_SCORE;
+let refusalMinScore = 0.55;
+if (refusalMinScoreEnv !== undefined && refusalMinScoreEnv.trim() !== "") {
+  const parsed = Number(refusalMinScoreEnv);
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 1) {
+    throw new Error(
+      `REFUSAL_MIN_SCORE is invalid: "${refusalMinScoreEnv}". ` +
+        "It must be a finite number between 0 and 1 (cosine-similarity range). " +
+        "Unset it to use the default of 0.55.",
+    );
+  }
+  refusalMinScore = parsed;
+}
+
 // Whether the Postgres connection should use TLS. Managed Postgres
 // (Neon/Railway/etc.) requires it; local Docker Postgres does not.
 // Precedence:
@@ -52,6 +73,7 @@ export const config = Object.freeze({
   portkeyVirtualKey: process.env.PORTKEY_VIRTUAL_KEY || undefined,
   portkeyConfig: process.env.PORTKEY_CONFIG || undefined,
   voyageApiKey,
+  refusalMinScore,
   projectRoot,
 });
 
