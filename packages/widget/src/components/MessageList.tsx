@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { useChatStore } from "@/store/chatStore";
 import { MessageBubble } from "@/components/MessageBubble";
-import { MessageActions } from "@/components/MessageActions";
+import { FeedbackButtons } from "@/components/FeedbackButtons";
 import { LoadingIndicator } from "@/components/LoadingIndicator";
 import { Sources } from "@/components/Sources";
 import { RefusalNote } from "@/components/RefusalNote";
@@ -56,7 +56,8 @@ export function MessageList() {
           }
 
           // Assistant column: answer, then (for the latest answer only) the
-          // refusal note and sources, then the feedback thumbs.
+          // refusal note, sources, and feedback thumbs. The store tracks only
+          // the last answer's logId/feedback, so older answers get no thumbs.
           return (
             <div key={i} className="flex w-full flex-col items-start gap-2">
               <MessageBubble
@@ -66,7 +67,7 @@ export function MessageList() {
               />
               {isLast && lastWasRefused && <RefusalNote />}
               {isLast && <Sources sources={lastSources} />}
-              <MessageActions />
+              {isLast && <FeedbackButtons />}
             </div>
           );
         })
