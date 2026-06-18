@@ -22,8 +22,14 @@ the real UI lands in W3/W4.
   routes exactly — update both together:
   - `/chat` (`ChatMessage`, `ChatSource`, `ChatResponse`) ↔
     `packages/api/src/routes/chat.ts`. `ChatResponse` includes
-    `logId: number | null` (best-effort observability id). Note the response has
-    no `threadTitle` / `subject` / `dateRange` fields — those were removed.
+    `logId: number | null` (best-effort observability id) and the debug pair
+    `retrieval: RetrievalDebugItem[]` + `minScoreUsed: number` (D1/D2):
+    `retrieval` is the full top-K set with per-item `passedThreshold` flags and
+    is ALWAYS populated, incl. on refusal — distinct from `sources` (chunks the
+    answer used, `[]` on refusal); don't conflate them. The store holds these as
+    `lastRetrieval` / `lastMinScore` and `RetrievalDebugPanel` (a dev-only test
+    harness surface) reads them. Note the response has no `threadTitle` /
+    `subject` / `dateRange` fields — those were removed.
   - `/feedback` (`sendFeedback(logId, rating)`) ↔
     `packages/api/src/routes/feedback.ts`. Body is
     `{ logId, rating: "up" | "down" | null }` (`null` clears the rating — undo);

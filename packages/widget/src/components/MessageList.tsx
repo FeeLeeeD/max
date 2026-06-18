@@ -4,6 +4,7 @@ import { MessageBubble } from "@/components/MessageBubble";
 import { FeedbackButtons } from "@/components/FeedbackButtons";
 import { LoadingIndicator } from "@/components/LoadingIndicator";
 import { Sources } from "@/components/Sources";
+import { RetrievalDebugPanel } from "@/components/RetrievalDebugPanel";
 import { RefusalNote } from "@/components/RefusalNote";
 import { ErrorNotice } from "@/components/ErrorNotice";
 import { EmptyState } from "@/components/EmptyState";
@@ -68,6 +69,10 @@ export function MessageList() {
               {isLast && lastWasRefused && <RefusalNote />}
               {isLast && <Sources sources={lastSources} />}
               {isLast && <FeedbackButtons />}
+              {/* DERIVED: not in Figma — review. Dev-only retrieval debug panel
+                  for the test harness; always shown for the latest answer
+                  (incl. refusal) to calibrate the threshold. */}
+              {isLast && <RetrievalDebugPanel />}
             </div>
           );
         })

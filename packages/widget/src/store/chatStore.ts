@@ -5,6 +5,7 @@ import {
   ChatApiError,
   type ChatMessage,
   type ChatSource,
+  type RetrievalDebugItem,
 } from "@/api/chatClient";
 
 interface ChatState {
@@ -15,6 +16,11 @@ interface ChatState {
   // restructuring the messages array yet.
   lastSources: ChatSource[];
   lastWasRefused: boolean;
+  // Debug fields (D2) for the latest answer: the full retrieval set with
+  // per-item threshold checks, and the minScore those checks used. Always
+  // populated by /chat (incl. on refusal); the debug panel renders them.
+  lastRetrieval: RetrievalDebugItem[];
+  lastMinScore: number | null;
   // Observability id of the latest answer; the UI (L4) attaches feedback to it.
   // null when no answer yet or the server's log write failed.
   lastLogId: number | null;
@@ -38,6 +44,8 @@ export const useChatStore = create<ChatState>()((set, get) => ({
   error: null,
   lastSources: [],
   lastWasRefused: false,
+  lastRetrieval: [],
+  lastMinScore: null,
   lastLogId: null,
   lastFeedback: null,
 
@@ -65,6 +73,8 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         ],
         lastSources: res.sources,
         lastWasRefused: res.wasRefused,
+        lastRetrieval: res.retrieval,
+        lastMinScore: res.minScoreUsed,
         lastLogId: res.logId,
         // A new answer invalidates any prior feedback selection.
         lastFeedback: null,
@@ -118,6 +128,8 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       error: null,
       lastSources: [],
       lastWasRefused: false,
+      lastRetrieval: [],
+      lastMinScore: null,
       lastLogId: null,
       lastFeedback: null,
     });

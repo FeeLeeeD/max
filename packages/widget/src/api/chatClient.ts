@@ -14,6 +14,21 @@ export interface ChatSource {
   preview: string;
 }
 
+// Debug-only view of EVERY retrieved chunk (full top-K, before the refusal
+// cut), always populated — incl. on refusal — so the test harness can inspect
+// scores and calibrate the threshold. Mirrors RetrievalDebugItem in
+// packages/sandbox/src/rag.ts. Distinct from ChatSource (chunks the answer
+// actually used, which stays empty on refusal).
+export interface RetrievalDebugItem {
+  source: string;
+  title: string | null;
+  chunkIndex: number;
+  score: number;
+  headingPath?: string[];
+  contentPreview: string;
+  passedThreshold: boolean;
+}
+
 export interface ChatResponse {
   answer: string;
   sources: ChatSource[];
@@ -22,6 +37,10 @@ export interface ChatResponse {
   // Best-effort observability id from the server (null when the log write
   // failed). The UI attaches feedback to it via sendFeedback().
   logId: number | null;
+  // Debug fields (D1): the full retrieval set with per-item threshold checks,
+  // and the minScore threshold those checks were computed against.
+  retrieval: RetrievalDebugItem[];
+  minScoreUsed: number;
 }
 
 // Thrown when the server responds with a non-2xx status.
